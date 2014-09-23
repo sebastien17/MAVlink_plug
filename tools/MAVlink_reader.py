@@ -11,7 +11,7 @@ print "Collecting updates from MAVlink_plug..."
 socket.connect ("tcp://localhost:%s" % port)
 
 
-# Subscribe to zipcode, default is NYC, 10001
+# Subscribe to HEARBEAT topic
 topicfilter = "HEARTBEAT"
 socket.setsockopt(zmq.SUBSCRIBE, topicfilter)
 
