@@ -1,0 +1,3 @@
+[submodule "tools/html_interface/fi"]
+	path = tools/html_interface/fi
+	url = https://github.com/sebmatton/jQuery-Flight-Indicators
