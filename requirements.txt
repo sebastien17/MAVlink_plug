@@ -1,3 +1,6 @@
 # Add your requirements here like:
 # numpy
 # scipy>=0.9
+pymavlink>=1.1.36
+pyserial>=2.7
+pyzmq>=14.3.1
