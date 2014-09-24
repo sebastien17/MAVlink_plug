@@ -3,32 +3,40 @@
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
     <head>
         <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
-        <title>title</title>
+        <title>UAV Visualisation</title>
         <link rel="stylesheet" type="text/css" href="fi/css/flightindicators.css" />
-        <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
-        <script src="fi/js/jquery.flightindicators.min.js"></script>
+        <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
+        <script type="text/javascript" src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+        <script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
+        <script type="text/javascript" src="fi/js/jquery.flightindicators.min.js"></script>
     </head>
     <body>
-        <span id="attitude"></span>
-        <span id="heading"></span>
+        <div>
+            <span id="attitude"></span>
+            <span id="heading"></span>
+        </div>
+        <div id="map" style="height: 600px; width: 1000px;"></div>
     </body>
 </html>
-<script>
+<script type="text/javascript">
+    /* Document ready functions */
     $( document ).ready(function() {
         var ajax_port = 43017;
         var options = {
-            size : 300,             // Sets the size in pixels of the indicator (square)
-            showBox : true,         // Sets if the outer squared box is visible or not (true or false)
+            size : 200,             // Sets the size in pixels of the indicator (square)
+            showBox : false,         // Sets if the outer squared box is visible or not (true or false)
             img_directory : 'fi/img/'  // The directory where the images are saved to
         }
         var attitude = $.flightIndicator('#attitude', 'attitude', options);
         var heading = $.flightIndicator('#heading', 'heading', options);
+        var map = L.map('map').setView([51.505, -0.09], 13);
+        L.tileLayer('http://{s}.tiles.mapbox.com/v3/nimh.hf69d28h/{z}/{x}/{y}.png', {attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery Â© <a href="http://mapbox.com">Mapbox</a>',maxZoom: 18}).addTo(map);
         
-        //Mise à jour attitude
+        //Mise Ã  jour attitude
         setInterval(function() {
             $.ajax({
-                url : 'http://127.0.0.1:'+ ajax_port, // La ressource ciblée
-                type : 'POST', // Le type de la requête HTTP.
+                url : 'http://127.0.0.1:'+ ajax_port, 
+                type : 'POST', 
                 data : { topic: "ATTITUDE"},
                 dataType : 'json',
                 success : function(data, status){
