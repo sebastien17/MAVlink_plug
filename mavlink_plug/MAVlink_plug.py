@@ -39,24 +39,28 @@ def loop(mav):
     t0 = time()
     while(running):
         '''Listening loop'''
-        msg = mav.recv_msg()            #Non blocking TBC
-        if msg is not None:
-            if msg.get_type() not in data:
-                data[msg.get_type()] = dict()
-            for i in msg.get_fieldnames():
-                data[msg.get_type()][i]=msg.__dict__[i]
-        if ((time() - t0) > 1/frequency ):        #1 Hz publisher
-            for item in data:
-                json_data = dumps(data[item])
-                socket.send("{0} {1}".format(item, json_data))
-            t0 = time()
+        try:
+            msg = mav.recv_msg()            #Non blocking TBC
+        except:
+            pass
+            running = False
+        else:
+            if msg is not None:
+                if msg.get_type() not in data:
+                    data[msg.get_type()] = dict()
+                for i in msg.get_fieldnames():
+                    data[msg.get_type()][i]=msg.__dict__[i]
+            if ((time() - t0) > 1/frequency ):        #1 Hz publisher
+                for item in data:
+                    json_data = dumps(data[item])
+                    print('Sending {0}'.format(item))
+                    socket.send("{0} {1}".format(item, json_data))
+                t0 = time()
 
 def connection(*argv, **kwargs):
     '''Connection Loop '''
-    running = True
     print('Initiating mavlink connection')
-    print('Try', end="")
-    while(running):
+    while(True):
         print('.', end="")
         try:
             mav = mavutil.mavlink_connection(*argv,**kwargs)
@@ -64,9 +68,7 @@ def connection(*argv, **kwargs):
             pass
         else:
             print('!')
-            print('COM Connection OK')
             loop(mav)
-            running = False # If successful one time ==> leave
         sleep(1)
 
         
