@@ -2,9 +2,11 @@ from urlparse import urlparse, parse_qs
 import BaseHTTPServer
 import SimpleHTTPServer
 import zmq
+import cgi
 
 AJAX_PORT = 43017
 ZQM_PORT = "42017"
+interface_file = ".\html_interface\index.html"
 
 # Socket to talk to server
 context = zmq.Context()
@@ -18,25 +20,15 @@ class TestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
     
     def do_POST(self):
         """Handle a post request by returning the square of the number."""
-        length = int(self.headers.getheader('content-length'))        
-        data_string = self.rfile.read(length)
-        
-        # Subscribe to HEARBEAT topic
-        topicfilter = data_string
-        socket.setsockopt(zmq.SUBSCRIBE, topicfilter)
-        try:
-            string = socket.recv()
-            topic, messagedata = string.split(" ",1)
-            result = messagedata
-        except:
-            result = 'error'
-        self.wfile.write(result)
-        
-    def do_GET(self):
-        """Handle a post request by returning the square of the number."""
-        query_components = parse_qs(urlparse(self.path).query)
-
-        topicfilter = query_components["topic"][0]
+        ctype, pdict = cgi.parse_header(self.headers.getheader('content-type'))
+        if ctype == 'multipart/form-data':
+            postvars = cgi.parse_multipart(self.rfile, pdict)
+        elif ctype == 'application/x-www-form-urlencoded':
+            length = int(self.headers.getheader('content-length'))
+            postvars = cgi.parse_qs(self.rfile.read(length), keep_blank_values=1)
+        else:
+            postvars = {}
+        topicfilter = postvars["topic"][0]
         # Subscribe to topic
         socket.setsockopt(zmq.SUBSCRIBE, topicfilter)
         try:

@@ -1,0 +1,44 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+    <head>
+        <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
+        <title>title</title>
+        <link rel="stylesheet" type="text/css" href="fi/css/flightindicators.css" />
+        <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+        <script src="fi/js/jquery.flightindicators.min.js"></script>
+    </head>
+    <body>
+        <span id="attitude"></span>
+        <span id="heading"></span>
+    </body>
+</html>
+<script>
+    $( document ).ready(function() {
+        var ajax_port = 43017;
+        var options = {
+            size : 300,             // Sets the size in pixels of the indicator (square)
+            showBox : true,         // Sets if the outer squared box is visible or not (true or false)
+            img_directory : 'fi/img/'  // The directory where the images are saved to
+        }
+        var attitude = $.flightIndicator('#attitude', 'attitude', options);
+        var heading = $.flightIndicator('#heading', 'heading', options);
+        
+        //Mise à jour attitude
+        setInterval(function() {
+            $.ajax({
+                url : 'http://127.0.0.1:'+ ajax_port, // La ressource ciblée
+                type : 'POST', // Le type de la requête HTTP.
+                data : { topic: "ATTITUDE"},
+                dataType : 'json',
+                success : function(data, status){
+                    attitude.setRoll(-data['roll']/Math.PI*180);
+                    attitude.setPitch(data['pitch']/Math.PI*180);
+                    heading.setHeading(data['yaw']/Math.PI*180);
+                }
+            });
+        }, 50);
+        
+    });
+</script>
+

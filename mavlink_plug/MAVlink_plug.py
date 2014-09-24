@@ -24,6 +24,8 @@ from pymavlink import mavutil
 from time import sleep, time
 from json import dumps
 
+frequency = 20  #20 Hz
+
 def loop(mav):
     ''' Main loop for MAVlink plug '''
     running = True
@@ -43,10 +45,9 @@ def loop(mav):
                 data[msg.get_type()] = dict()
             for i in msg.get_fieldnames():
                 data[msg.get_type()][i]=msg.__dict__[i]
-        if ((time() - t0) > 1 ):        #1 Hz publisher
+        if ((time() - t0) > 1/frequency ):        #1 Hz publisher
             for item in data:
                 json_data = dumps(data[item])
-                print("Sending {0}".format(item))
                 socket.send("{0} {1}".format(item, json_data))
             t0 = time()
 
