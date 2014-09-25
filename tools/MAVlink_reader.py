@@ -12,7 +12,7 @@ socket.connect ("tcp://localhost:%s" % port)
 
 
 # Subscribe to HEARBEAT topic
-topicfilter = "HEARTBEAT"
+topicfilter = ""
 socket.setsockopt(zmq.SUBSCRIBE, topicfilter)
 
 # Process 5 updates

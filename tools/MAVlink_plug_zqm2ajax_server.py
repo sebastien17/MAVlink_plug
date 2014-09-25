@@ -12,7 +12,7 @@ interface_file = ".\html_interface\index.html"
 # Socket to talk to server
 context = zmq.Context()
 socket = context.socket(zmq.SUB)
-socket.connect ("tcp://localhost:%s" % ZQM_PORT)
+socket.connect ("tcp://*:%s" % ZQM_PORT)
 topicfilter = ""
 
 
