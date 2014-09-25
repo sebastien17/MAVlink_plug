@@ -3,6 +3,7 @@ import BaseHTTPServer
 import SimpleHTTPServer
 import zmq
 import cgi
+from json import dumps
 
 AJAX_PORT = 43017
 ZQM_PORT = "42017"
@@ -31,12 +32,9 @@ class TestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         topicfilter = postvars["topic"][0]
         # Subscribe to topic
         socket.setsockopt(zmq.SUBSCRIBE, topicfilter)
-        try:
-            string = socket.recv()
-            topic, messagedata = string.split(" ",1)
-            result = messagedata
-        except:
-            result = 'error'
+        string = socket.recv()
+        topic, messagedata = string.split(" ",1)
+        result = messagedata
         #Unsuscribe previous filter
         socket.setsockopt(zmq.UNSUBSCRIBE, topicfilter)
         self.wfile.write(result)

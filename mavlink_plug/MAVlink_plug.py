@@ -38,7 +38,7 @@ class ZQM_Plug(object):
         self._publisher_thread = None
         self._frequency = 25.0 #Default frequency = 25 Hz
         self._zqm_port = 42017
-        self._count = [0,0,0]
+        self._count = [0,0]
         self._connection_argv = None
         self._connection_kwargs = None
         
@@ -59,7 +59,7 @@ class ZQM_Plug(object):
                         self._data[msg.get_type()][i]=msg.__dict__[i]
                     self._data_lock.release()
                     self._count[0] += 1
-                    print(self._count)
+                    #print(self._count)
                     
     def listener(self,running=True):
         '''Listen manager'''
@@ -83,11 +83,10 @@ class ZQM_Plug(object):
                     json_data = dumps(self._data[item])
                 except(UnicodeDecodeError):
                     continue                            #TODO : some smart logic to avoid : 'UnicodeDecodeError: 'utf8' codec can't decode byte 0xc9 in position 0: unexpected end of data'
-                self._count[2] += 1
+                self._count[1] += 1
                 socket.send("{0} {1}".format(item, json_data))
             self._data_lock.release()
-            self._count[1] += 1
-            print(self._count)
+            #print(self._count)
             sleep(1/self._frequency)
     
     def set_zqm_port(self, port):
@@ -99,13 +98,10 @@ class ZQM_Plug(object):
     def publisher(self, running=True):
         '''ZQM Publisher''' 
         if(running):
-            if(self._zqm_port == 0):
-                print('ZQM port definition error!!!')
-            else:
-                self._publisher_running = True
-                self._publisher_thread = threading.Thread(None, self._publishing_loop, 'ZQM_publisher')
-                self._publisher_thread.setDaemon(True)
-                self._publisher_thread.start()
+            self._publisher_running = True
+            self._publisher_thread = threading.Thread(None, self._publishing_loop, 'ZQM_publisher')
+            self._publisher_thread.setDaemon(True)
+            self._publisher_thread.start()
         else:
             self._publisher_running = False
             self._publisher_thread.join()
@@ -115,7 +111,7 @@ class ZQM_Plug(object):
         self._connection_argv = argv
         self._connection_kwargs = kwargs
         running = True
-        print('Initiating mavlink connection')
+        print('Initiating mavlink connection', end="")
         while(running):
             print('.', end="")
             try:
@@ -132,7 +128,7 @@ class ZQM_Plug(object):
             try:
                 sleep(1)
             except(KeyboardInterrupt, SystemExit):
-                print('Exit called !!')
+                print('Exit called !!\nRecv/Send: {0}'.format(self._count))
                 exit(0)
 
     def __del__(self):
