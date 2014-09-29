@@ -4,3 +4,6 @@
 [submodule "tools/html_interface/gmaps"]
 	path = tools/html_interface/gmaps
 	url = https://github.com/HPNeo/gmaps.git
+[submodule "tools/html_interface/cesiumjs"]
+	path = tools/html_interface/cesiumjs
+	url = https://github.com/mixxen/cesiumjs
