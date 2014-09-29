@@ -3,18 +3,19 @@ import BaseHTTPServer
 import SimpleHTTPServer
 import zmq
 import cgi
-from json import dumps
+from json import dumps, loads
+import threading
 
 AJAX_PORT = 43017
-ZQM_PORT = "42017"
+ZQM_PORT_IN = "42017"
+ZQM_PORT_OUT = "42018"
 interface_file = ".\html_interface\index.html"
+running = False
+data = {}
 
-# Socket to talk to server
 context = zmq.Context()
-socket = context.socket(zmq.SUB)
-socket.connect ("tcp://*:%s" % ZQM_PORT)
-topicfilter = ""
-
+socket_out = context.socket(zmq.PUB)
+socket_out.connect("tcp://127.0.0.1:%s" % ZQM_PORT_OUT)
 
 class TestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
     """The test example handler."""
@@ -29,15 +30,21 @@ class TestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
             postvars = cgi.parse_qs(self.rfile.read(length), keep_blank_values=1)
         else:
             postvars = {}
-        topicfilter = postvars["topic"][0]
-        # Subscribe to topic
-        socket.setsockopt(zmq.SUBSCRIBE, topicfilter)
-        string = socket.recv()
-        topic, messagedata = string.split(" ",1)
-        result = messagedata
-        #Unsuscribe previous filter
-        socket.setsockopt(zmq.UNSUBSCRIBE, topicfilter)
-        self.wfile.write(result)
+        messagedata = None
+        type = postvars["type"][0]
+        topic = postvars["topic"][0]
+        
+        #GET_VALUE type
+        if(type == 'GET_VALUE'):                        
+            if(topic in data):
+                messagedata = dumps(data[topic])
+            else:
+                messagedata = dumps({})
+            self.wfile.write(messagedata)
+        else:
+            #MAVLINK_CMD type
+            if(type == 'MAVLINK_CMD'):                  
+                socket_out.send('MAVLINK_CMD {0}'.format(topic))
 
 def start_server():
     """Start the server."""
@@ -45,5 +52,29 @@ def start_server():
     server = BaseHTTPServer.HTTPServer(server_address, TestHandler)
     server.serve_forever()
 
+def ZMQ_suscriber_thread():
+    print('ZMQ_in loop start')
+
+    socket = context.socket(zmq.SUB)                  #0mq publisher
+    socket.connect ("tcp://127.0.0.1:%s" % ZQM_PORT_IN)
+    socket.setsockopt(zmq.SUBSCRIBE, '')
+    while(running):
+        string = socket.recv()
+        topic, messagedata = string.split(" ",1)
+        if(topic not in data):
+            data[topic] = {}
+        data[topic] = loads(messagedata)
+    print('ZMQ_in loop stop') 
+    
+    
+def start_ZMQ_suscriber():
+    global running
+    running = True
+    ZMQ_thread = threading.Thread(None, ZMQ_suscriber_thread, 'ZMQ_thread',)
+    ZMQ_thread.setDaemon(True)
+    ZMQ_thread.start()
+
 if __name__ == "__main__":
+    start_ZMQ_suscriber()
     start_server()
+    

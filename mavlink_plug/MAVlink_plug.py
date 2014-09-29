@@ -128,7 +128,8 @@ class MAVlink_ZMQ_Plug(object):
             socket.setsockopt(zmq.SUBSCRIBE, 'MAVLINK_CMD')    #MAVLINK command
             string = socket.recv()
             self._count[2] += 1
-            #self._mav.reboot_autopilot()
+            if(string == 'MAVLINK_CMD RESET'):
+                self._mav.reboot_autopilot()
         print('ZMQ_in loop stop')    
         
     def __del__(self):

@@ -1,5 +1,6 @@
 $( document ).ready(function() {
     init_fi();
+    init_event();
     var viewer = new Cesium.Viewer('cesiumContainer');
 });
     
@@ -18,7 +19,7 @@ function init_fi(){
             $.ajax({
                 url : 'http://127.0.0.1:'+ ajax_port, 
                 type : 'POST', 
-                data : { topic: "ATTITUDE"},
+                data : { topic: "ATTITUDE", type: "GET_VALUE"},
                 dataType : 'json',
                 success : function(data, status){
                     attitude.setRoll(-data['roll']/Math.PI*180);
@@ -28,3 +29,30 @@ function init_fi(){
             });
         }, 50);
     }
+
+    
+function init_event(){
+    var ajax_port = 43017;
+    $("#reset_button").click(function() {
+
+            $.ajax({
+                url : 'http://127.0.0.1:'+ ajax_port, 
+                type : 'POST', 
+                data : { topic: "RESET", type: "MAVLINK_CMD"},
+                dataType : 'json',
+                success : function(data, status){
+                }
+            });
+    });
+    $("#loiter_button").click(function() {
+
+            $.ajax({
+                url : 'http://127.0.0.1:'+ ajax_port, 
+                type : 'POST', 
+                data : { topic: "LOITER_MODE", type: "MAVLINK_CMD"},
+                dataType : 'json',
+                success : function(data, status){
+                }
+            });
+    });
+};
