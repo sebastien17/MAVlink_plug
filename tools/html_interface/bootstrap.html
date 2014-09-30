@@ -449,15 +449,37 @@
                         </div>
                         <!-- /.panel-heading -->
                         <div class="panel-body">
-                            
-                            <p>
-                                <button cmd="LOITER_MODE" type="button" class="btn btn-primary MAVlink_CMD_button" id="loiter_button">Loiter</button>
-                                <button cmd="RTL_MODE" type="button" class="btn btn-primary MAVlink_CMD_button" id="RTL_button">RTL</button>
-                                <button cmd="MISSION_MODE" type="button" class="btn btn-primary MAVlink_CMD_button" id="mission_button">Mission</button>
-                            </p>
-                            <p>
-                                <button cmd="RESET" type="button" class="btn btn-warning MAVlink_CMD_button" id="reset_button">Reset</button>
-                            </p>
+                            <!-- Nav tabs -->
+                            <ul class="nav nav-tabs">
+                                <li class="active"><a href="#flight" data-toggle="tab">In Flight</a>
+                                </li>
+                                <li><a href="#ground" data-toggle="tab">On Ground</a>
+                                </li>
+                                <li><a href="#others" data-toggle="tab">Others</a>
+                                </li>
+                            </ul>
+                            <!-- Tab panes -->
+                            <div class="tab-content">
+                                <div class="tab-pane fade in active" id="flight">
+                                    <h4>Flight mode</h4>
+                                    <p>
+                                        <button cmd="LOITER_MODE" type="button" class="btn btn-primary MAVlink_CMD_button" id="loiter_button">Loiter</button>
+                                        <button cmd="RTL_MODE" type="button" class="btn btn-primary MAVlink_CMD_button" id="RTL_button">RTL</button>
+                                        <button cmd="MISSION_MODE" type="button" class="btn btn-primary MAVlink_CMD_button" id="mission_button">Mission</button>
+                                    </p>
+                                </div>
+                                <div class="tab-pane fade" id="ground">
+                                    <h4>Autopilot action</h4>
+                                    <p>
+                                        <button cmd="RESET" type="button" class="btn btn-warning MAVlink_CMD_button" id="reset_button">Reset</button>
+                                    </p>
+                                </div>
+                                <!--
+                                <div class="tab-pane fade" id="others">
+                                    <h4>Others Tab</h4>
+                                </div>
+                                -->
+                            </div>
                         </div>
                         <!-- /.panel-body -->
                     </div>

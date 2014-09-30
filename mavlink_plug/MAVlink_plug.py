@@ -38,6 +38,8 @@ class MAVlink_ZMQ_Plug(object):
         self._connection_argv = None
         self._connection_kwargs = None
         self._context = zmq.Context()
+        self._verbose = False
+        self._logging = False
         
     def MAVLINK_connection(self, *argv, **kwargs):
         '''Connection Manager'''
@@ -97,6 +99,8 @@ class MAVlink_ZMQ_Plug(object):
                     else:
                         self._count[1] += 1
                         socket.send("{0} {1}".format(msg.get_type(), json_data))
+                        if(self._logging):
+                            logging.debug("{0} {1}".format(msg.get_type(), json_data))
         socket.close()
         print('MAVLINK_in_ZMQ_out loop stop')
 
@@ -127,6 +131,8 @@ class MAVlink_ZMQ_Plug(object):
             socket.setsockopt(zmq.SUBSCRIBE, 'CMD')            #MAVLINK PLUG command
             socket.setsockopt(zmq.SUBSCRIBE, 'MAVLINK_CMD')    #MAVLINK command
             string = socket.recv()
+            if(self._logging):
+                logging.debug(string)
             self._count[2] += 1
             topic, messagedata = string.split(" ",1)
             if (topic == 'MAVLINK_CMD'):
@@ -149,11 +155,24 @@ class MAVlink_ZMQ_Plug(object):
         while(True):
             try:
                 sleep(1)
-                if(args.verbose):
+                if(self._verbose):
                     print('[MAVLINK IN, ZQM OUT, ZQM IN] : {0}'.format(self._count))
             except(KeyboardInterrupt, SystemExit):
                 print('Exit called !!\nRecv/Send: {0}'.format(self._count))
                 exit(0)
+                
+    def verbose(self, switch):
+        if(switch):
+            self._verbose = True
+        else:
+             self._verbose = False
+             
+    def logging(self, switch):
+        if(switch):
+            self._logging = True
+        else:
+             self._logging = False
+    
         
         
 if(__name__ == "__main__"):
@@ -165,6 +184,7 @@ if(__name__ == "__main__"):
     parser.add_argument("--zmq_out", type=int, help="define ZMQ port to publish MAVLINK data", default=42017)
     parser.add_argument("--zmq_in", type=int, help="define ZMQ port to suscribe to external commands", default=42018)
     parser.add_argument("--verbose", help="set verbose output", action="store_true")
+    parser.add_argument("--logging", help="log DEBUG info in MAVlink_plug.log file", action="store_true")
     args = parser.parse_args()
     
     com_port = 'COM8'                                           # Get local machine COM port
@@ -172,6 +192,11 @@ if(__name__ == "__main__"):
     dialect_in_use="pixhawk"                                    # Dialect in use
     
     my_plug = MAVlink_ZMQ_Plug()
+    if(args.verbose):
+        my_plug.verbose(True)
+    if(args.logging):
+        logging.basicConfig(filename='MAVlink_plug.log',level=logging.DEBUG,format='[%(levelname)s] %(asctime)s (%(threadName)-10s) %(message)s', filemode = 'w')
+        my_plug.logging(True)
     my_plug.MAVLINK_connection( args.mavlink, baud=args.baud, dialect=args.dialect) # try to connect to MAVlink using mavutil.mvlink_connection parameters
     my_plug.MAVLINK_in_ZMQ_out(args.zmq_out)
     my_plug.ZMQ_in(args.zmq_in)
