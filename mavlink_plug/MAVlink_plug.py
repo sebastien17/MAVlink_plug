@@ -149,22 +149,32 @@ class MAVlink_ZMQ_Plug(object):
         while(True):
             try:
                 sleep(1)
-                print(self._count)
+                if(args.verbose):
+                    print('[MAVLINK IN, ZQM OUT, ZQM IN] : {0}'.format(self._count))
             except(KeyboardInterrupt, SystemExit):
                 print('Exit called !!\nRecv/Send: {0}'.format(self._count))
                 exit(0)
         
         
 if(__name__ == "__main__"):
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mavlink", type=str, help="define MAVLINK input", default="COM8")
+    parser.add_argument("--baud", type=int, help="set baud rate if COM connection", default=57600)
+    parser.add_argument("--dialect", type=str, help="define MAVLINK dialect", default="pixhawk")
+    parser.add_argument("--zmq_out", type=int, help="define ZMQ port to publish MAVLINK data", default=42017)
+    parser.add_argument("--zmq_in", type=int, help="define ZMQ port to suscribe to external commands", default=42018)
+    parser.add_argument("--verbose", help="set verbose output", action="store_true")
+    args = parser.parse_args()
     
     com_port = 'COM8'                                           # Get local machine COM port
     baud_rate=57600                                             # Set COM baud rate
     dialect_in_use="pixhawk"                                    # Dialect in use
     
     my_plug = MAVlink_ZMQ_Plug()
-    my_plug.MAVLINK_connection(com_port, baud=baud_rate, dialect=dialect_in_use) # try to connect to MAVlink using mavutil.mvlink_connection parameters
-    my_plug.MAVLINK_in_ZMQ_out(42017)
-    my_plug.ZMQ_in(42018)
+    my_plug.MAVLINK_connection( args.mavlink, baud=args.baud, dialect=args.dialect) # try to connect to MAVlink using mavutil.mvlink_connection parameters
+    my_plug.MAVLINK_in_ZMQ_out(args.zmq_out)
+    my_plug.ZMQ_in(args.zmq_in)
     my_plug.forever()
 
     
