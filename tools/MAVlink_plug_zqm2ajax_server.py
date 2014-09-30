@@ -34,17 +34,19 @@ class TestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         type = postvars["type"][0]
         topic = postvars["topic"][0]
         
-        #GET_VALUE type
-        if(type == 'GET_VALUE'):                        
-            if(topic in data):
-                messagedata = dumps(data[topic])
+        #GET_VALUE topic
+        if(topic == 'GET_VALUE'):                        
+            if(type in data):
+                messagedata = dumps(data[type])
             else:
                 messagedata = dumps({})
             self.wfile.write(messagedata)
         else:
-            #MAVLINK_CMD type
-            if(type == 'MAVLINK_CMD'):                  
-                socket_out.send('MAVLINK_CMD {0}'.format(topic))
+            #MAVLINK_CMD topic
+            if(topic == 'MAVLINK_CMD'):                  
+                if( type == 'RESET' or type == 'LOITER_MODE' or type == 'RTL_MODE' or type == 'MISSION_MODE'):
+                    socket_out.send('{0} {1}'.format(topic, type))
+                    self.wfile.write(dumps({}))
 
 def start_server():
     """Start the server."""

@@ -1,3 +1,17 @@
+//Global definition 
+
+//Cesium js
+var cjs_viewer;
+var cjs_scene;
+var cjs_globe;
+
+//Host information
+var _hostname = window.location.hostname;
+var _port = window.location.port;
+
+//Flight Indicator
+var fi_update = true;
+
 $( document ).ready(function() {
     init_fi();
     init_event();
@@ -6,21 +20,25 @@ $( document ).ready(function() {
 
 function init_cesiumjs(){
     //Init cesiumjs viewer
-    var viewer = new Cesium.Viewer('cesiumContainer');
-    var scene = viewer.scene;
+    cjs_viewer = new Cesium.Viewer('cesiumContainer');
+    cjs_scene = cjs_viewer.scene;
+    cjs_globe = cjs_scene.globe;
+    
+    cjs_globe.enableLighting = true;
     // Ask browser for location, and fly there.
     navigator.geolocation.getCurrentPosition(fly);
     
     // Create callback for browser's geolocation
     function fly(position) {
-    scene.camera.flyTo({
+    cjs_scene.camera.flyTo({
         destination : Cesium.Cartesian3.fromDegrees(position.coords.longitude, position.coords.latitude, 1000.0)
         });
     };
 }
     
 function init_fi(){
-    var ajax_port = 43017;
+    var ajax_port = _port;
+    var ajax_hostname = _hostname;
     var options = {
         size : 200,             // Sets the size in pixels of the indicator (square)
         showBox : false,         // Sets if the outer squared box is visible or not (true or false)
@@ -31,43 +49,42 @@ function init_fi(){
     var heading = $.flightIndicator('#heading', 'heading', options);
     //Setting FI updates
     setInterval(function() {
-        $.ajax({
-            url : 'http://127.0.0.1:'+ ajax_port, 
-            type : 'POST', 
-            data : { topic: "ATTITUDE", type: "GET_VALUE"},
-            dataType : 'json',
-            success : function(data, status){
-                attitude.setRoll(-data['roll']/Math.PI*180);
-                attitude.setPitch(data['pitch']/Math.PI*180);
-                heading.setHeading(data['yaw']/Math.PI*180);
-            }
-        });
+        if(fi_update){
+            $.ajax({
+                url : ajax_hostname + ajax_port, 
+                type : 'POST', 
+                data : { topic: "GET_VALUE", type: "ATTITUDE"},
+                dataType : 'json',
+                success : function(data, status){
+                    attitude.setRoll((-data['roll']/Math.PI*180).toFixed(3));
+                    attitude.setPitch((data['pitch']/Math.PI*180).toFixed(3));
+                    heading.setHeading((data['yaw']/Math.PI*180).toFixed(3));
+                }
+            });
+        };
     }, 50);
+    
+    //fi_update_switch logics
+    $("#fi_update_switch").click(function() {
+        fi_update = fi_update ? false : true;
+    });
 }
 
     
 function init_event(){
-    var ajax_port = 43017;
-    $("#reset_button").click(function() {
-
+    var ajax_port = _port;
+    var ajax_hostname = _hostname;
+    //Logic behind button with class MAVlink_CMD_button
+    $(".MAVlink_CMD_button").click(function() {
+            var $this = $( this );
             $.ajax({
-                url : 'http://127.0.0.1:'+ ajax_port, 
+                url : ajax_hostname + ajax_port,  
                 type : 'POST', 
-                data : { topic: "RESET", type: "MAVLINK_CMD"},
+                data : {topic: "MAVLINK_CMD", type: $this.attr('cmd')},
                 dataType : 'json',
                 success : function(data, status){
                 }
             });
     });
-    $("#loiter_button").click(function() {
 
-            $.ajax({
-                url : 'http://127.0.0.1:'+ ajax_port, 
-                type : 'POST', 
-                data : { topic: "LOITER_MODE", type: "MAVLINK_CMD"},
-                dataType : 'json',
-                success : function(data, status){
-                }
-            });
-    });
 };

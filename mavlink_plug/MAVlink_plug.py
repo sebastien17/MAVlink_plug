@@ -128,8 +128,16 @@ class MAVlink_ZMQ_Plug(object):
             socket.setsockopt(zmq.SUBSCRIBE, 'MAVLINK_CMD')    #MAVLINK command
             string = socket.recv()
             self._count[2] += 1
-            if(string == 'MAVLINK_CMD RESET'):
-                self._mav.reboot_autopilot()
+            topic, messagedata = string.split(" ",1)
+            if (topic == 'MAVLINK_CMD'):
+                if (messagedata == 'RESET'):
+                    self._mav.reboot_autopilot()
+                elif (messagedata == 'LOITER_MODE'):
+                    self._mav.set_mode_loiter()
+                elif (messagedata == 'RTL_MODE'):
+                    self._mav.set_mode_rtl()
+                elif (messagedata == 'MISSION_MODE'):
+                    self._mav.set_mode_auto()
         print('ZMQ_in loop stop')    
         
     def __del__(self):
