@@ -5,6 +5,8 @@ import zmq
 import cgi
 from json import dumps, loads
 import threading
+from time import time, sleep
+
 
 AJAX_PORT = 43017
 ZQM_PORT_IN = "42017"
@@ -37,16 +39,32 @@ class TestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         #GET_VALUE topic
         if(topic == 'GET_VALUE'):                        
             if(type in data):
-                messagedata = dumps(data[type])
+                temp_data = data[type].copy()
+                temp_data['_dt'] = time() - temp_data['_ts'] #Adding delta time value to data
+                messagedata = dumps(temp_data)
+                del(temp_data)
             else:
                 messagedata = dumps({})
             self.wfile.write(messagedata)
         else:
             #MAVLINK_CMD topic
             if(topic == 'MAVLINK_CMD'):                  
-                if( type == 'RESET' or type == 'LOITER_MODE' or type == 'RTL_MODE' or type == 'MISSION_MODE'):
-                    socket_out.send('{0} {1}'.format(topic, type))
+                cmd_dict = {}
+                cmd_dict['cmd'] = type
+                if( type == 'RESET' or type == 'LOITER_MODE' or type == 'RTL_MODE' or type == 'MISSION_MODE' ):
+                    socket_out.send('{0} {1}'.format(topic, dumps(cmd_dict)))
                     self.wfile.write(dumps({}))
+                if(type == 'WP_REQUEST'):
+                    start_time = time()
+                    socket_out.send('{0} {1}'.format(topic, dumps(cmd_dict)))
+                    sleep(1)
+                    if('MISSION_COUNT' in data):
+                        if(data['MISSION_COUNT']['_ts'] > start_time):
+                            self.wfile.write(dumps(data['MISSION_COUNT']))
+                        else:
+                            self.wfile.write(dumps({}))
+                    else:
+                        self.wfile.write(dumps({}))
 
 def start_server():
     """Start the server."""
@@ -66,6 +84,7 @@ def ZMQ_suscriber_thread():
         if(topic not in data):
             data[topic] = {}
         data[topic] = loads(messagedata)
+        data[topic]['_ts'] = time()                      #timestamp
     print('ZMQ_in loop stop') 
     
     

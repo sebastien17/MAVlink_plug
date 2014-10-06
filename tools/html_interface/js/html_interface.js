@@ -6,14 +6,14 @@ var cjs_scene;
 var cjs_globe;
 var cjs_billboards;
 var cjs_uav; 
-var cjs_map_update = true;
+var cjs_map_update = false;
 
 //Host information
 var _hostname = window.location.hostname;
 var _port = window.location.port;
 
 //Flight Indicator
-var fi_update = true;
+var fi_update = false;
 
 $( document ).ready(function() {
     init_fi();
@@ -45,7 +45,7 @@ function init_cesiumjs(){
     };
     //Add icon to billboard
         cjs_uav = cjs_billboards.add({
-        image : 'https://cdn1.iconfinder.com/data/icons/future/512/drones_watching-128.png',
+        image : 'img/red_point.png',
         scale : 0.3,
         show : false
     });
@@ -91,6 +91,11 @@ function init_cesiumjs(){
             });
         };
     }, 1000);
+    
+    //cjs_update_switch logics
+    $("#cjs_update_switch").click(function() {
+        cjs_map_update = cjs_map_update ? false : true;
+    });
 }
     
 function init_fi(){

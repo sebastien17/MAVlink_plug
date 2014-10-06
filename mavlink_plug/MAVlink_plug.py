@@ -23,7 +23,7 @@ import logging
 import threading
 from pymavlink import mavutil
 from time import sleep, time
-from json import dumps
+from json import dumps, loads
 
 class MAVlink_ZMQ_Plug(object):
     
@@ -135,15 +135,18 @@ class MAVlink_ZMQ_Plug(object):
                 logging.debug(string)
             self._count[2] += 1
             topic, messagedata = string.split(" ",1)
+            cmd_dict = loads(messagedata)
             if (topic == 'MAVLINK_CMD'):
-                if (messagedata == 'RESET'):
+                if (cmd_dict['cmd'] == 'RESET'):
                     self._mav.reboot_autopilot()
-                elif (messagedata == 'LOITER_MODE'):
+                elif (cmd_dict['cmd'] == 'LOITER_MODE'):
                     self._mav.set_mode_loiter()
-                elif (messagedata == 'RTL_MODE'):
+                elif (cmd_dict['cmd'] == 'RTL_MODE'):
                     self._mav.set_mode_rtl()
-                elif (messagedata == 'MISSION_MODE'):
+                elif (cmd_dict['cmd'] == 'MISSION_MODE'):
                     self._mav.set_mode_auto()
+                elif(cmd_dict['cmd'] == 'WP_REQUEST'):
+                    self._mav.waypoint_request_list_send()
         print('ZMQ_in loop stop')    
         
     def __del__(self):
