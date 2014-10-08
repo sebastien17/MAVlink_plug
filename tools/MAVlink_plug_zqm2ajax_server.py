@@ -32,7 +32,7 @@ class TestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
             postvars = cgi.parse_qs(self.rfile.read(length), keep_blank_values=1)
         else:
             postvars = {}
-        messagedata = None
+        messagedata = dumps({})
         type = postvars["type"][0]
         topic = postvars["topic"][0]
         
@@ -43,29 +43,27 @@ class TestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
                 temp_data['_dt'] = time() - temp_data['_ts'] #Adding delta time value to data
                 messagedata = dumps(temp_data)
                 del(temp_data)
-            else:
-                messagedata = dumps({})
-            self.wfile.write(messagedata)
-        else:
-            #MAVLINK_CMD topic
-            if(topic == 'MAVLINK_CMD'):                  
-                cmd_dict = {}
-                cmd_dict['cmd'] = type
-                if( type == 'RESET' or type == 'LOITER_MODE' or type == 'RTL_MODE' or type == 'MISSION_MODE' ):
-                    socket_out.send('{0} {1}'.format(topic, dumps(cmd_dict)))
-                    self.wfile.write(dumps({}))
-                if(type == 'WP_REQUEST'):
-                    start_time = time()
-                    socket_out.send('{0} {1}'.format(topic, dumps(cmd_dict)))
-                    sleep(1)
-                    if('MISSION_COUNT' in data):
-                        if(data['MISSION_COUNT']['_ts'] > start_time):
-                            self.wfile.write(dumps(data['MISSION_COUNT']))
-                        else:
-                            self.wfile.write(dumps({}))
-                    else:
-                        self.wfile.write(dumps({}))
-
+        elif(topic == 'MAVLINK_CMD'):
+            #MAVLINK_CMD topic                 
+            if( type == 'RESET' or type == 'LOITER_MODE' or type == 'RTL_MODE' or type == 'MISSION_MODE' ):
+                cmd_dict = {'cmd': type}
+                socket_out.send('{0} {1}'.format(topic, dumps(cmd_dict)))
+            elif(type == 'WP_LIST_REQUEST'):
+                data['MISSION_ITEM'] = {}    # reset waypoint list in server
+                start_time = time()
+                cmd_dict = {'cmd': type}
+                socket_out.send('{0} {1}'.format(topic, dumps(cmd_dict)))
+                sleep(1)            #TODO : some thing more elegant
+                if('MISSION_COUNT' in data):
+                    if(data['MISSION_COUNT']['count'] > 0 and data['MISSION_COUNT']['_ts'] > start_time):
+                        start_time = time()
+                        for i in range(data['MISSION_COUNT']['count']):
+                            cmd_dict = {'cmd': 'WP_REQUEST', 'seq': i}
+                            socket_out.send('MAVLINK_CMD {0}'.format(dumps(cmd_dict)))
+                        sleep(3)
+                        if(len(data['MISSION_ITEM']) == data['MISSION_COUNT']['count']):
+                            messagedata = dumps(data['MISSION_ITEM']) 
+        self.wfile.write(messagedata)
 def start_server():
     """Start the server."""
     server_address = ("", AJAX_PORT)
@@ -81,10 +79,18 @@ def ZMQ_suscriber_thread():
     while(running):
         string = socket.recv()
         topic, messagedata = string.split(" ",1)
-        if(topic not in data):
-            data[topic] = {}
-        data[topic] = loads(messagedata)
-        data[topic]['_ts'] = time()                      #timestamp
+        if(topic == 'BAD_DATA'):
+            continue
+        # if(topic not in data):
+            # data[topic] = {}
+        if(topic == 'MISSION_ITEM'):
+            '''MISSION ITEM treatment'''
+            mission_item_data = loads(messagedata)
+            data['MISSION_ITEM'][int(mission_item_data['seq'])] = loads(messagedata)
+            data['MISSION_ITEM'][int(mission_item_data['seq'])]['_ts'] = time() 
+        else:
+            data[topic] = loads(messagedata)
+            data[topic]['_ts'] = time()                      #timestamp
     print('ZMQ_in loop stop') 
     
     

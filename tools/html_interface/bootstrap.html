@@ -368,14 +368,14 @@
         <div id="page-wrapper">
             <div class="row">
                 <div class="col-lg-12">
-                    <h1 class="page-header">Dashboard</h1>
+                    <h1></h1>
                 </div>
                 <!-- /.col-lg-12 -->
             </div>
             <!-- /.row -->
             
             <div class="row">
-                <div class="col-lg-8">
+                <div class="col-lg-10">
                     <div class="panel panel-primary">
                         <div class="panel-heading">
                             Map
@@ -435,7 +435,7 @@
                     <!-- /.panel -->
                 </div>
                 <!-- /.col-lg-8 -->
-                <div class="col-lg-4">
+                <div class="col-lg-2">
                     <div class="panel panel-danger">
                         <div class="panel-heading">
                              Actions
@@ -458,13 +458,13 @@
                                 <div class="tab-pane fade in active" id="flight">
                                     <h4>Flight mode</h4>
                                     <p>
-                                        <button cmd="LOITER_MODE" type="button" class="btn btn-primary MAVlink_CMD_button" id="loiter_button">Loiter</button>
-                                        <button cmd="RTL_MODE" type="button" class="btn btn-primary MAVlink_CMD_button" id="RTL_button">RTL</button>
-                                        <button cmd="MISSION_MODE" type="button" class="btn btn-primary MAVlink_CMD_button" id="mission_button">Mission</button>
+                                        <button cmd="LOITER_MODE" type="button" class="btn btn-primary MAVlink_CMD_button" >Loiter</button>
+                                        <button cmd="RTL_MODE" type="button" class="btn btn-primary MAVlink_CMD_button" >RTL</button>
+                                        <button cmd="MISSION_MODE" type="button" class="btn btn-primary MAVlink_CMD_button" >Mission</button>
                                     </p>
                                     <h4>Waypoint</h4>
                                     <p>
-                                        <button cmd="WP_REQUEST" type="button" class="btn btn-primary MAVlink_CMD_button" id="wp_request_button">Request waypoints</button>
+                                        <button id="MAVlink_CMD_WP_request_list_button" type="button" class="btn btn-primary" >Request waypoints</button>
                                     </p>
                                 </div>
                                 <div class="tab-pane fade" id="ground">

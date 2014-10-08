@@ -5,8 +5,10 @@ var cjs_viewer;
 var cjs_scene;
 var cjs_globe;
 var cjs_billboards;
+var cjs_waypoints;
 var cjs_uav; 
 var cjs_map_update = false;
+var UAV_waypoints;
 
 //Host information
 var _hostname = window.location.hostname;
@@ -25,11 +27,13 @@ function init_cesiumjs(){
     
     var ajax_port = _port;
     var ajax_hostname = _hostname;
+    
     //Init cesiumjs viewer
     cjs_viewer = new Cesium.Viewer('cesiumContainer');
     cjs_scene = cjs_viewer.scene;
     cjs_globe = cjs_scene.globe;
     cjs_billboards = cjs_scene.primitives.add(new Cesium.BillboardCollection());
+    cjs_waypoints = cjs_scene.primitives.add(new Cesium.BillboardCollection());
     
     //Global Lighting
     cjs_globe.enableLighting = true;
@@ -45,6 +49,8 @@ function init_cesiumjs(){
     };
     //Add icon to billboard
         cjs_uav = cjs_billboards.add({
+        horizontalOrigin : Cesium.HorizontalOrigin.CENTER,
+        verticalOrigin  :  Cesium.VerticalOrigin.CENTER,
         image : 'img/red_point.png',
         scale : 0.3,
         show : false
@@ -148,5 +154,37 @@ function init_event(){
                 }
             });
     });
+    $("#MAVlink_CMD_WP_request_list_button").click(function() {
+            var $this = $( this );
+            $.ajax({
+                url : ajax_hostname + ajax_port,  
+                type : 'POST', 
+                data : {topic: "MAVLINK_CMD", type: "WP_LIST_REQUEST"},
+                dataType : 'json',
+                success : function(data, status){
+                    UAV_waypoints = data;
+                    update_waypoint();
+                }
+            });
+    });
 
 };
+
+
+function update_waypoint(){
+    
+    var waypoint_show = {
+            image : 'img/black_losange.png',
+            horizontalOrigin : Cesium.HorizontalOrigin.CENTER,
+            verticalOrigin  :  Cesium.VerticalOrigin.CENTER,
+            color : new Cesium.Color(1.0, 1.0, 1.0, 0.7),
+            scale : 0.15,
+            show : false
+        };
+    cjs_waypoints.removeAll();    
+    for (var key in UAV_waypoints) {
+        temp = cjs_waypoints.add(waypoint_show);
+        temp.position = Cesium.Cartesian3.fromDegrees(UAV_waypoints[key].y, UAV_waypoints[key].x, UAV_waypoints[key].z);
+        temp.show = true;
+    }
+}

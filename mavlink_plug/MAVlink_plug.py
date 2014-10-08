@@ -85,7 +85,7 @@ class MAVlink_ZMQ_Plug(object):
             try:
                 msg = self._mav.recv_msg()            #Non blocking TBC
             except:
-                self.connection(*self._connection_argv, **self._connection_kwargs)
+                self.MAVLINK_connection(*self._connection_argv, **self._connection_kwargs)
             else:
                 if msg is not None:
                     self._count[0] += 1
@@ -136,23 +136,35 @@ class MAVlink_ZMQ_Plug(object):
             self._count[2] += 1
             topic, messagedata = string.split(" ",1)
             cmd_dict = loads(messagedata)
+            logging_string = '{0} : Not yet implemented'.format(cmd_dict['cmd'])
             if (topic == 'MAVLINK_CMD'):
                 if (cmd_dict['cmd'] == 'RESET'):
                     self._mav.reboot_autopilot()
+                    logging_string = 'Launch reboot_autopilot command'
                 elif (cmd_dict['cmd'] == 'LOITER_MODE'):
                     self._mav.set_mode_loiter()
+                    logging_string = 'Launch set_mode_loiter command'
                 elif (cmd_dict['cmd'] == 'RTL_MODE'):
                     self._mav.set_mode_rtl()
+                    logging_string = 'Launch set_mode_rtl command'
                 elif (cmd_dict['cmd'] == 'MISSION_MODE'):
                     self._mav.set_mode_auto()
-                elif(cmd_dict['cmd'] == 'WP_REQUEST'):
+                    logging_string = 'Launch set_mode_auto command'
+                elif(cmd_dict['cmd'] == 'WP_LIST_REQUEST'):
                     self._mav.waypoint_request_list_send()
+                    logging_string = 'Launch waypoint_request_list_send command'
+                elif(cmd_dict['cmd'] == 'WP_REQUEST'):
+                    self._mav.waypoint_request_send(cmd_dict['seq'])
+                    logging_string = 'Launch waypoint_request_send({0}) command'.format(cmd_dict['seq'])
+                if(self._logging):
+                    logging.debug(logging_string)          
         print('ZMQ_in loop stop')    
         
     def __del__(self):
         self._context.destroy()
         self.MAVLINK_in_ZMQ_out_close()
         self.ZMQ_in_close()
+        logging.shutdown()
         
     def forever(self):
         while(True):
