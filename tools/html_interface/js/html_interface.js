@@ -20,7 +20,7 @@ var fi_update = false;
 $( document ).ready(function() {
     init_fi();
     init_event();
-    init_cesiumjs();    
+    init_cesiumjs();
 });
 
 function init_cesiumjs(){
@@ -29,7 +29,17 @@ function init_cesiumjs(){
     var ajax_hostname = _hostname;
     
     //Init cesiumjs viewer
-    cjs_viewer = new Cesium.Viewer('cesiumContainer');
+    cjs_viewer = new Cesium.Viewer('cesiumContainer',{  timeline : false,
+                                                        homeButton: false, 
+                                                        animation: false, 
+                                                        navigationHelpButton : false,
+                                                        baseLayerPicker : false,
+                                                        imageryProvider : new Cesium.BingMapsImageryProvider({
+                                                            url : '//dev.virtualearth.net',
+                                                            //key : 'get-yours-at-https://www.bingmapsportal.com/',
+                                                            mapStyle : Cesium.BingMapsStyle.AERIAL_WITH_LABELS
+                                                        })
+    });
     cjs_scene = cjs_viewer.scene;
     cjs_globe = cjs_scene.globe;
     cjs_billboards = cjs_scene.primitives.add(new Cesium.BillboardCollection());
