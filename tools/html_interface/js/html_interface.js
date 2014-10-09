@@ -21,6 +21,7 @@ $( document ).ready(function() {
     init_fi();
     init_event();
     init_cesiumjs();
+    init_waypointsTable();
 });
 
 function init_cesiumjs(){
@@ -118,7 +119,7 @@ function init_fi(){
     var ajax_port = _port;
     var ajax_hostname = _hostname;
     var options = {
-        size : 200,             // Sets the size in pixels of the indicator (square)
+        size : 150,             // Sets the size in pixels of the indicator (square)
         showBox : false,         // Sets if the outer squared box is visible or not (true or false)
         img_directory : 'fi/img/'  // The directory where the images are saved to
     }
@@ -179,6 +180,10 @@ function init_event(){
     });
 
 };
+
+function init_waypointsTable(){  
+    
+}
 
 
 function update_waypoint(){
