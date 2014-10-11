@@ -1,0 +1,1 @@
+..\venv\Scripts\python.exe MAVlink_plug_zqm2ajax_server.py
