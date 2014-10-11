@@ -10,7 +10,7 @@ from flask import Flask, request, Response, render_template
 ZQM_PORT_IN = "42017"
 
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='statics', static_url_path='/statics')
 
 
 #Defining incoming zmq communication
