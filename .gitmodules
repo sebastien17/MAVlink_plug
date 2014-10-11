@@ -7,3 +7,12 @@
 [submodule "tools/html_interface/appendGrid"]
 	path = tools/html_interface/appendGrid
 	url = https://github.com/hkalbertl/jquery.appendGrid
+[submodule "tools/statics/vendor/fi"]
+	path = tools/statics/vendor/fi
+	url = https://github.com/sebmatton/jQuery-Flight-Indicators
+[submodule "tools/statics/vendor/cesiumjs"]
+	path = tools/statics/vendor/cesiumjs
+	url = https://github.com/mixxen/cesiumjs
+[submodule "tools/statics/vendor/appendGrid"]
+	path = tools/statics/vendor/appendGrid
+	url = https://github.com/hkalbertl/jquery.appendGrid
