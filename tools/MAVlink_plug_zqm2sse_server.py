@@ -10,7 +10,7 @@ from flask import Flask, request, Response, render_template
 ZQM_PORT_IN = "42017"
 
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='statics', static_url_path='/statics')
 
 
 #Defining incoming zmq communication
@@ -35,5 +35,5 @@ def page():
     return render_template('sse.html')
 
 if __name__ == '__main__':
-    http_server = WSGIServer(('127.0.0.1', 8001), app)
+    http_server = WSGIServer(('127.0.0.1', 1717), app)
     http_server.serve_forever()

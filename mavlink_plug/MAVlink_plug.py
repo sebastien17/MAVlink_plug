@@ -1,20 +1,5 @@
+#!/usr/bin/env python
 from __future__ import print_function
-'''Listener using pymavlink module
-    Important msg methods :
-    'get_crc'               :
-    'get_fieldnames'        : list of fieldname [(str)]
-    'get_header'            :
-    'get_msgId'             :
-    'get_msgbuf'            : raw message (str)
-    'get_payload'           : 
-    'get_seq'               :
-    'get_srcComponent'      :
-    'get_srcSystem'         :
-    'get_type'              : type of message (e.g HEARTBEAT) (str)
-    'to_dict'               : ???
-    'to_json'               : ???
-    parameter are directly available see fieldnames 
-'''
 
 #Import 
 import zmq
@@ -25,7 +10,7 @@ from pymavlink import mavutil
 from time import sleep, time
 from json import dumps, loads
 
-class MAVlink_ZMQ_Plug(object):
+class MAVLINK_Plug(object):
     
     def __init__(self):
         '''Initialization loop'''
@@ -88,19 +73,20 @@ class MAVlink_ZMQ_Plug(object):
                 self.MAVLINK_connection(*self._connection_argv, **self._connection_kwargs)
             else:
                 if msg is not None:
-                    self._count[0] += 1
-                    data = {}
-                    for i in msg.get_fieldnames():
-                        data[i]=msg.__dict__[i]
-                    try:
-                        json_data = dumps(data)
-                    except:
-                        pass                            #TODO : some smart logic to avoid : 'UnicodeDecodeError: 'utf8' codec can't decode byte 0xc9 in position 0: unexpected end of data'
-                    else:
-                        self._count[1] += 1
-                        socket.send("{0} {1}".format(msg.get_type(), json_data))
-                        if(self._logging):
-                            logging.debug("{0} {1}".format(msg.get_type(), json_data))
+                    if (msg.get_type() != 'BAD DATA'):
+                        self._count[0] += 1
+                        data = {}
+                        for i in msg.get_fieldnames():
+                            data[i]=msg.__dict__[i]
+                        try:
+                            json_data = dumps(data)
+                        except:
+                            pass                            #TODO : some smart logic to avoid : 'UnicodeDecodeError: 'utf8' codec can't decode byte 0xc9 in position 0: unexpected end of data'
+                        else:
+                            self._count[1] += 1
+                            socket.send("{0} {1}".format(msg.get_type(), json_data))
+                            if(self._logging):
+                                logging.debug("{0} {1}".format(msg.get_type(), json_data))
         socket.close()
         print('MAVLINK_in_ZMQ_out loop stop')
 
@@ -201,12 +187,8 @@ if(__name__ == "__main__"):
     parser.add_argument("--verbose", help="set verbose output", action="store_true")
     parser.add_argument("--logging", help="log DEBUG info in MAVlink_plug.log file", action="store_true")
     args = parser.parse_args()
-    
-    com_port = 'COM8'                                           # Get local machine COM port
-    baud_rate=57600                                             # Set COM baud rate
-    dialect_in_use="pixhawk"                                    # Dialect in use
-    
-    my_plug = MAVlink_ZMQ_Plug()
+ 
+    my_plug = MAVLINK_Plug()
     if(args.verbose):
         my_plug.verbose(True)
     if(args.logging):
