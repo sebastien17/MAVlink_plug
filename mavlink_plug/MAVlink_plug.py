@@ -38,7 +38,7 @@ class MAVLINK_Plug(object):
     @in_thread
     def _bridge(self):
         ''' Create the ZMQ bridge between in & out'''
-        print('Creating in process bridge')
+        self._print('Creating in process bridge')
         socket_in =  self._zmq_context.socket(zmq.SUB)
         socket_in.bind('inproc://in')                           #Bind because most stable
         socket_in.setsockopt(zmq.SUBSCRIBE, '')
@@ -52,10 +52,10 @@ class MAVLINK_Plug(object):
     @in_thread
     def MAVLINK_connection(self,*argv, **kwargs):
         connection_in_number = len(self._thread_in_list)        #Define the number of the connection
-        self._thread_out_list.append(threading.currentThread())     #Auto registration of the thread
+        self._thread_in_list.append(threading.currentThread())     #Auto registration of the thread
         
         def try_connection():
-            print('Initialising MAVLINK connection')
+            self._print('Initialising MAVLINK connection {0:02d}'.format(connection_in_number))
             while(True):
                 try:
                     result = mavutil.mavlink_connection(*argv,**kwargs) # TODO : monkey_patch
@@ -63,7 +63,7 @@ class MAVLINK_Plug(object):
                     sleep(1)                                #Wait 1 second until next try
                 else:
                     break
-            print('MAVLINK connection acquired')
+            self._print('MAVLINK connection acquired')
             return result
         
         socket =  self._zmq_context.socket(zmq.PUB)
@@ -71,12 +71,12 @@ class MAVLINK_Plug(object):
         mav = try_connection()
         ident = '{0}{1:02d}'.format(self._prefix_string,connection_in_number)
         
-        print('MAVLINK_connection {0} loop start'.format(connection_in_number))
+        self._print('MAVLINK_connection {0:02d} loop start'.format(connection_in_number))
         while(True):
             try:
                 msg = mav.recv_msg()                        #Blocking TBC
             except:
-                print('MAVLINK connection lost')
+                self._print('MAVLINK connection lost')
                 mav = try_connection()
             else:
                 if msg is not None:
@@ -97,7 +97,7 @@ class MAVLINK_Plug(object):
                             socket.send(string)
                             logging.debug(string)
         socket.close()
-        print('MAVLINK_connection {0} loop stop'.format(connection_in_number))
+        self._print('MAVLINK_connection {0:02d} loop stop'.format(connection_in_number))
     
     @in_thread
     def ZMQ_publisher(self, port):
@@ -110,7 +110,7 @@ class MAVLINK_Plug(object):
         socket_out = self._zmq_context.socket(zmq.PUB)              #Zmq publisher
         socket_out.bind("tcp://*:%s" % port)
         
-        print('ZMQ_publisher {0} loop start'.format(connection_out_number))
+        self._print('ZMQ_publisher {0:02d} loop start'.format(connection_out_number))
         while(True):
             string = socket_in.recv()
             socket_out.send(string)
@@ -118,7 +118,31 @@ class MAVLINK_Plug(object):
         
         socket_in.close()
         socket_out.close()
-        print('MAVLINK_in_ZMQ_out {0} loop start'.format(connection_out_number))
+        self._print('MAVLINK_in_ZMQ_out {0:02d} loop start'.format(connection_out_number))
+        
+    @in_thread
+    def Plugin(self, funct,*argv, **kwargs):
+        ##########################################################
+        #
+        #Plugin wrapper
+        #The plugin function has to take a zmq subscriber socket (blocking socket) as first argument
+        #It will be run in a new thread and has to manage the infinite receiving loop
+        #
+        ##########################################################
+        connection_out_number = len(self._thread_out_list)          #Define the number of the connection
+        self._thread_out_list.append(threading.currentThread())     #Auto registration of the thread
+
+        socket_in = self._zmq_context.socket(zmq.SUB)
+        socket_in.connect('inproc://out')                           #Connect to bridge output
+        socket_in.setsockopt(zmq.SUBSCRIBE, '')
+        
+        self._print('Plugin {0:02d} loop start'.format(connection_out_number))
+        funct(socket_in, *argv, **kwargs)                           
+        self._print('Plugin {0:02d} loop stop'.format(connection_out_number))
+        
+    def _print(self, _string):
+        print(_string)
+        loggin.info(_string)
         
     def server_forever(self):
         while(True):
@@ -128,8 +152,7 @@ class MAVLINK_Plug(object):
                     print('[MAVLINK IN, ZQM OUT, ZQM IN] : {0}'.format(self._count))
             except(KeyboardInterrupt, SystemExit):
                 string = 'Exit called !!\nRecv/Send: {0}'.format(self._count)
-                logging.info(string)
-                print(string)
+                self._print(string)
                 exit(0)
                             
     def verbose(self, switch):
