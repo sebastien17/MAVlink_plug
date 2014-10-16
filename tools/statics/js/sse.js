@@ -1,5 +1,28 @@
 //Global definition 
 
+//Data
+var global_data = {};
+var msg_count = 0;
+
+//Scheduler
+var sched_data = {
+    init:[
+        stream_init,
+        fi_init,
+        init_event,
+        init_cesiumjs,
+        init_waypointsTable
+    ],
+    refresh:[
+        [ fi_refresh,  100],
+    ]
+}
+
+
+    //init_event();
+    //init_cesiumjs();
+    //init_waypointsTable();
+
 //Cesium js
 var cjs_viewer;
 var cjs_scene;
@@ -15,21 +38,25 @@ var _hostname = window.location.hostname;
 var _port = window.location.port;
 
 //Flight Indicator
-var fi_update = false;
+var fi = {}
+fi.fi_update = false;
 
-//Data
-var global_data = {};
-var msg_count = 0;
+
 
 $( document ).ready(function() {
-    init_stream()
-    init_fi();
-    //init_event();
-    //init_cesiumjs();
-    //init_waypointsTable();
+    scheduler()
 });
 
-function init_stream(){
+function scheduler(){
+    for(i=0; i<sched_data.init.length;i++){
+        sched_data.init[i]();
+    }
+    for(i=0; i<sched_data.refresh.length;i++){
+        setInterval(sched_data.refresh[i][0], sched_data.refresh[i][1]);
+    }
+}
+
+function stream_init(){
     
     sse = new EventSource('/stream');
     sse.onmessage = function(event) {
@@ -82,7 +109,7 @@ function init_cesiumjs(){
         cjs_uav = cjs_billboards.add({
         horizontalOrigin : Cesium.HorizontalOrigin.CENTER,
         verticalOrigin  :  Cesium.VerticalOrigin.CENTER,
-        image : 'img/red_point.png',
+        image : 'statics/img/red_point.png',
         scale : 0.3,
         show : false
     });
@@ -113,31 +140,31 @@ function init_cesiumjs(){
     });
 }
     
-function init_fi(){
+function fi_init(){
      //Initializing FI
-    var options = {
+    fi.options = {
         size : 150,             // Sets the size in pixels of the indicator (square)
         showBox : false,         // Sets if the outer squared box is visible or not (true or false)
         img_directory : 'statics/vendor/fi/img/'  // The directory where the images are saved to
     }
-    var attitude = $.flightIndicator('#attitude', 'attitude', options);
-    var heading = $.flightIndicator('#heading', 'heading', options);
+    fi.attitude = $.flightIndicator('#attitude', 'attitude', fi.options);
+    fi.heading = $.flightIndicator('#heading', 'heading', fi.options);
     
     //Setting FI updates
-    setInterval(function() {
-        if(fi_update){
-                    attitude.setRoll((-global_data['ATTITUDE']['roll']/Math.PI*180).toFixed(3));
-                    attitude.setPitch((global_data['ATTITUDE']['pitch']/Math.PI*180).toFixed(3));
-                    heading.setHeading((global_data['ATTITUDE']['yaw']/Math.PI*180).toFixed(3));
-        }
-    }, 100);
+
     
     //fi_update_switch logics
     $("#fi_update_switch").click(function() {
-        fi_update = fi_update ? false : true;
+        fi.fi_update = fi.fi_update ? false : true;
     });
 }
-
+function fi_refresh() {
+        if(fi.fi_update){
+                    fi.attitude.setRoll((-global_data['ATTITUDE']['roll']/Math.PI*180).toFixed(3));
+                    fi.attitude.setPitch((global_data['ATTITUDE']['pitch']/Math.PI*180).toFixed(3));
+                    fi.heading.setHeading((global_data['ATTITUDE']['yaw']/Math.PI*180).toFixed(3));
+        }
+    }
     
 function init_event(){
     var ajax_port = _port;
@@ -203,3 +230,4 @@ function update_waypoint(){
         temp.show = true;
     }
 }
+
