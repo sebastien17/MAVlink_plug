@@ -142,7 +142,7 @@ class MAVLINK_Plug(object):
         
     def _print(self, _string):
         print(_string)
-        loggin.info(_string)
+        logging.info(_string)
         
     def server_forever(self):
         while(True):

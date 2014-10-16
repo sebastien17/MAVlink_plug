@@ -1,9 +1,3 @@
-//Global definition 
-
-//Data
-var global_data = {};
-var msg_count = 0;
-
 //Scheduler
 var sched_data = {
     init:[
@@ -18,28 +12,23 @@ var sched_data = {
     ]
 }
 
-
-    //init_event();
-    //init_cesiumjs();
-    //init_waypointsTable();
-
+//Globals
 //Cesium js
-var cjs_viewer;
-var cjs_scene;
-var cjs_globe;
-var cjs_billboards;
-var cjs_waypoints;
-var cjs_uav; 
-var cjs_map_update = false;
-var UAV_waypoints;
+var cjs = {}
+//Flight Indicator
+var fi = {}
+//Stream
+var stream = {}
+//Interface
+var interf = {}
+
+
+
 
 //Host information
 var _hostname = window.location.hostname;
 var _port = window.location.port;
 
-//Flight Indicator
-var fi = {}
-fi.fi_update = false;
 
 
 
@@ -47,6 +36,11 @@ $( document ).ready(function() {
     scheduler()
 });
 
+/****************************************************************************
+*
+* Scheduler Logics
+*
+*****************************************************************************/ 
 function scheduler(){
     for(i=0; i<sched_data.init.length;i++){
         sched_data.init[i]();
@@ -56,90 +50,97 @@ function scheduler(){
     }
 }
 
+/****************************************************************************
+*
+* Server Side Event Logics
+*
+*****************************************************************************/  
 function stream_init(){
-    
-    sse = new EventSource('/stream');
-    sse.onmessage = function(event) {
-        msg_count += 1;
-        res = event.data.split(" ",1);
-        msg_type = res[0];
-        msg_data = event.data.substring(msg_type.length+1);
-        temp = JSON.parse(msg_data);
-        global_data[msg_type] = temp;
+    stream.data = {};
+    stream.msg_count = 0;
+    stream.sse = new EventSource('/stream');
+    stream.sse.onmessage = stream_read
+}
+
+function stream_read(event) {
+    stream.msg_count += 1;
+    res = event.data.split(" ",1);
+    msg_ident = res[0];
+    msg_data = event.data.substring(msg_ident.length+1);
+    temp = JSON.parse(msg_data);
+    if(!(msg_ident in stream.data)){
+        stream.data[msg_ident] = {}
+        stream.data[msg_ident].time_boot_ms = 0
+        if(interf.current_ident == {}){
+            interf.current_ident = msg_ident
+        }
+    }
+    for (data_type in temp){
+        if(!(data_type in stream.data[msg_ident])){
+            stream.data[msg_ident][data_type] = {}
+        }
+        if(data_type == 'ATTITUDE'){
+            stream.data[msg_ident].time_boot_ms = temp[data_type].time_boot_ms
+        }
+        stream.data[msg_ident][data_type] = temp[data_type]
+        stream.data[msg_ident][data_type].ts = stream.data[msg_ident].time_boot_ms
     }
 }
 
-
-
+/****************************************************************************
+*
+* Cesiumjs Logics
+*
+*****************************************************************************/  
 function init_cesiumjs(){
     
     var ajax_port = _port;
     var ajax_hostname = _hostname;
     
     //Init cesiumjs viewer
-    cjs_viewer = new Cesium.Viewer('cesiumContainer',{  timeline : false,
-                                                        homeButton: false, 
-                                                        animation: false, 
-                                                        navigationHelpButton : false,
-                                                        baseLayerPicker : false,
-                                                        imageryProvider : new Cesium.BingMapsImageryProvider({
-                                                            url : '//dev.virtualearth.net',
-                                                            //key : 'get-yours-at-https://www.bingmapsportal.com/',
-                                                            mapStyle : Cesium.BingMapsStyle.AERIAL_WITH_LABELS
-                                                        })
+    cjs.viewer = new Cesium.Viewer('cesiumContainer',{  
+        timeline : false,
+        homeButton: false, 
+        animation: false, 
+        navigationHelpButton : false,
+        baseLayerPicker : false,
+        imageryProvider : new Cesium.BingMapsImageryProvider({
+            url : '//dev.virtualearth.net',
+            //key : 'get-yours-at-https://www.bingmapsportal.com/',
+            mapStyle : Cesium.BingMapsStyle.AERIAL_WITH_LABELS
+        })
     });
-    cjs_scene = cjs_viewer.scene;
-    cjs_globe = cjs_scene.globe;
-    cjs_billboards = cjs_scene.primitives.add(new Cesium.BillboardCollection());
-    cjs_waypoints = cjs_scene.primitives.add(new Cesium.BillboardCollection());
+    cjs.scene = cjs.viewer.scene;
+    cjs.globe = cjs.scene.globe;
+    cjs.billboards = cjs.scene.primitives.add(new Cesium.BillboardCollection());
+    cjs.waypoints = cjs.scene.primitives.add(new Cesium.BillboardCollection());
     
     //Global Lighting
-    cjs_globe.enableLighting = true;
+    cjs.globe.enableLighting = true;
     
-    // Ask browser for location, and fly there.
-    navigator.geolocation.getCurrentPosition(fly);
-    
+    //cjs_update_switch logics
+    cjs.map_update = false;
+    $("#cjs_uav_location_switch").click(function() {
+        cjs.map_update = cjs.map_update ? false : true;
+    });
+    $("#cjs_fly_to_actual").click(function() {
+        navigator.geolocation.getCurrentPosition(cjs.fly);
+    });
+}
+
     // Create callback for browser's geolocation
-    function fly(position) {
-    cjs_scene.camera.flyTo({
+cjs.fly = function(position) {
+    cjs.scene.camera.flyTo({
         destination : Cesium.Cartesian3.fromDegrees(position.coords.longitude, position.coords.latitude, 1000.0)
         });
     };
-    //Add icon to billboard
-        cjs_uav = cjs_billboards.add({
-        horizontalOrigin : Cesium.HorizontalOrigin.CENTER,
-        verticalOrigin  :  Cesium.VerticalOrigin.CENTER,
-        image : 'statics/img/red_point.png',
-        scale : 0.3,
-        show : false
-    });
-        
-        /**************************************************************
-        billboards.add({
-        image : '../images/Cesium_Logo_overlay.png', // default: undefined
-        show : true, // default
-        position : Cesium.Cartesian3.fromDegrees(-75.59777, 40.03883),
-        pixelOffset : new Cesium.Cartesian2(0, -50), // default: (0, 0)
-        eyeOffset : new Cesium.Cartesian3(0.0, 0.0, 0.0), // default
-        horizontalOrigin : Cesium.HorizontalOrigin.CENTER, // default
-        verticalOrigin : Cesium.VerticalOrigin.BOTTOM, // default: CENTER
-        scale : 2.0, // default: 1.0
-        color : Cesium.Color.LIME, // default: WHITE
-        rotation : Cesium.Math.PI_OVER_FOUR, // default: 0.0
-        alignedAxis : Cesium.Cartesian3.ZERO, // default
-        width : 100, // default: undefined
-        height : 25 // default: undefined
-    });
-    ************************************************************************/
 
 
-    
-    //cjs_update_switch logics
-    $("#cjs_update_switch").click(function() {
-        cjs_map_update = cjs_map_update ? false : true;
-    });
-}
-    
+/****************************************************************************
+*
+* Flight Indicator Logics
+*
+*****************************************************************************/   
 function fi_init(){
      //Initializing FI
     fi.options = {
@@ -154,80 +155,72 @@ function fi_init(){
 
     
     //fi_update_switch logics
+    fi.fi_update = false;
     $("#fi_update_switch").click(function() {
         fi.fi_update = fi.fi_update ? false : true;
     });
 }
 function fi_refresh() {
         if(fi.fi_update){
-                    fi.attitude.setRoll((-global_data['ATTITUDE']['roll']/Math.PI*180).toFixed(3));
-                    fi.attitude.setPitch((global_data['ATTITUDE']['pitch']/Math.PI*180).toFixed(3));
-                    fi.heading.setHeading((global_data['ATTITUDE']['yaw']/Math.PI*180).toFixed(3));
+                    fi.attitude.setRoll((-stream.data['ATTITUDE']['roll']/Math.PI*180).toFixed(3));
+                    fi.attitude.setPitch((stream.data['ATTITUDE']['pitch']/Math.PI*180).toFixed(3));
+                    fi.heading.setHeading((stream.data['ATTITUDE']['yaw']/Math.PI*180).toFixed(3));
         }
     }
+
     
+/****************************************************************************
+*
+* Interface Events Logics
+*
+*****************************************************************************/
 function init_event(){
-    var ajax_port = _port;
-    var ajax_hostname = _hostname;
-    //Logic behind button with class MAVlink_CMD_button
-    $(".MAVlink_CMD_button").click(function() {
-            var $this = $( this );
-            $.ajax({
-                url : ajax_hostname + ajax_port,  
-                type : 'POST', 
-                data : {topic: "MAVLINK_CMD", type: $this.attr('cmd')},
-                dataType : 'json',
-                success : function(data, status){
-                }
-            });
-    });
-    $("#MAVlink_CMD_WP_request_list_button").click(function() {
-            var $this = $( this );
-            $.ajax({
-                url : ajax_hostname + ajax_port,  
-                type : 'POST', 
-                data : {topic: "MAVLINK_CMD", type: "WP_LIST_REQUEST"},
-                dataType : 'json',
-                success : function(data, status){
-                    UAV_waypoints = data;
-                    update_waypoint();
-                }
-            });
-    });
 
 };
 
+/* <PARAM1> <PARAM2> <PARAM3> <PARAM4> <PARAM5/X/LONGITUDE> <PARAM6/Y/LATITUDE> <PARAM7/Z/ALTITUDE> <AUTOCONTINUE>*/
 function init_waypointsTable(){  
     $('#waypointsTable').appendGrid({
         initRows: 1,
         columns: [
-                { name: 'Album', display: 'Album', type: 'text', ctrlAttr: { maxlength: 100 }, ctrlCss: { width: '160px'} },
-                { name: 'Artist', display: 'Artist', type: 'text', ctrlAttr: { maxlength: 100 }, ctrlCss: { width: '100px'} },
-                { name: 'Year', display: 'Year', type: 'text', ctrlAttr: { maxlength: 4 }, ctrlCss: { width: '40px'} },
-                { name: 'Origin', display: 'Origin', type: 'select', ctrlOptions: { 0: '{Choose}', 1: 'Hong Kong', 2: 'Taiwan', 3: 'Japan', 4: 'Korea', 5: 'US', 6: 'Others'} },
-                { name: 'Poster', display: 'With Poster?', type: 'checkbox' },
-                { name: 'Price', display: 'Price', type: 'text', ctrlAttr: { maxlength: 10 }, ctrlCss: { width: '50px', 'text-align': 'right' }, value: 0 },
+                { name: 'current_wpt', display: 'Current Wpt', type: 'checkbox' },
+                { name: 'c_frame', display: 'C. Frame', type: 'select', ctrlOptions:{  0: 'MAV_FRAME_GLOBAL',
+                                                                                        1: 'MAV_FRAME_LOCAL_NED',
+                                                                                        2: 'MAV_FRAME_MISSION',
+                                                                                        3: 'MAV_FRAME_GLOBAL_RELATIVE_ALT',
+                                                                                        4: 'MAV_FRAME_LOCAL_ENU',
+                                                                                        7: 'MAV_FRAME_LOCAL_OFFSET_NED',
+                                                                                        8: 'MAV_FRAME_BODY_NED',
+                                                                                        9: 'MAV_FRAME_BODY_OFFSET_NED',
+                                                                                        10: 'MAV_FRAME_GLOBAL_TERRAIN_ALT' 
+                                                                                    } 
+                },
+                { name: 'command', display: 'Command', type: 'select', ctrlOptions: {   16: 'MAV_CMD_NAV_WAYPOINT',
+                                                                                        17: 'MAV_CMD_NAV_LOITER_UNLIM',
+                                                                                        18: 'MAV_CMD_NAV_LOITER_TURNS',
+                                                                                        19: 'MAV_CMD_NAV_LOITER_TIME',
+                                                                                        20: 'MAV_CMD_NAV_RETURN_TO_LAUNCH',
+                                                                                        21: 'MAV_CMD_NAV_LAND',
+                                                                                        22: 'MAV_CMD_NAV_TAKEOFF',
+                                                                                        80: 'MAV_CMD_NAV_ROI',
+                                                                                        81: 'MAV_CMD_NAV_PATHPLANNING',
+                                                                                        82: 'MAV_CMD_NAV_SPLINE_WAYPOINT',
+                                                                                        92: 'MAV_CMD_NAV_GUIDED_ENABLE'
+                                                                                    } 
+                }
+                ,
+                { name: 'param1', display: 'Par. 1', type: 'text', ctrlAttr: { maxlength: 20 }, ctrlCss: { width: '80px'} },
+                { name: 'param2', display: 'Par. 2', type: 'text', ctrlAttr: { maxlength: 20 }, ctrlCss: { width: '80px'} },
+                { name: 'param3', display: 'Par. 3', type: 'text', ctrlAttr: { maxlength: 20 }, ctrlCss: { width: '80px'} },
+                { name: 'param4', display: 'Par. 4', type: 'text', ctrlAttr: { maxlength: 20 }, ctrlCss: { width: '80px'} },
+                { name: 'param5', display: 'Par. 5/x', type: 'text', ctrlAttr: { maxlength: 20 }, ctrlCss: { width: '80px'} },
+                { name: 'param6', display: 'Par. 6/y', type: 'text', ctrlAttr: { maxlength: 20 }, ctrlCss: { width: '80px'} },
+                { name: 'param7', display: 'Par. 7/z', type: 'text', ctrlAttr: { maxlength: 20 }, ctrlCss: { width: '80px'} },
+                { name: 'autocontinue', display: 'Autocontinue', type: 'checkbox' },
                 { name: 'RecordId', type: 'hidden', value: 0 }
             ]
     });
 }
 
 
-function update_waypoint(){
-    
-    var waypoint_show = {
-            image : 'img/black_losange.png',
-            horizontalOrigin : Cesium.HorizontalOrigin.CENTER,
-            verticalOrigin  :  Cesium.VerticalOrigin.CENTER,
-            color : new Cesium.Color(1.0, 1.0, 1.0, 0.7),
-            scale : 0.15,
-            show : false
-        };
-    cjs_waypoints.removeAll();    
-    for (var key in UAV_waypoints) {
-        temp = cjs_waypoints.add(waypoint_show);
-        temp.position = Cesium.Cartesian3.fromDegrees(UAV_waypoints[key].y, UAV_waypoints[key].x, UAV_waypoints[key].z);
-        temp.show = true;
-    }
-}
 
