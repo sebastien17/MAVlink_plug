@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import gevent
+#import gevent
 from gevent.pywsgi import WSGIServer
 import zmq.green as zmq
 

@@ -28,7 +28,6 @@ class MAVLINK_Plug(object):
         self._thread_other_dict = {}                            #Thread list for other than MAVLINK connection
         self._count = [0,0,0,0]                                 #Message  count
         self._verbose = False
-        self._logging = False
         self._prefix_string = prefix
         
     def __del__(self):
@@ -167,30 +166,46 @@ class MAVLINK_Plug(object):
             target, messagedata = string.split(" ",1)
             cmd_dict = loads(messagedata)
             if(target in self._thread_mav_dict):
-                mav = self._thread_mav_dict[target]
-                #try:
-                #logging_string = '{0} : Not yet implemented'.format(cmd_dict['cmd'])
-                # if (topic == 'MAVLINK_CMD'):
-                    # if (cmd_dict['cmd'] == 'RESET'):
-                        # self._mav.reboot_autopilot()
-                        # logging_string = 'Launch reboot_autopilot command'
-                    # elif (cmd_dict['cmd'] == 'LOITER_MODE'):
-                        # self._mav.set_mode_loiter()
-                        # logging_string = 'Launch set_mode_loiter command'
-                    # elif (cmd_dict['cmd'] == 'RTL_MODE'):
-                        # self._mav.set_mode_rtl()
-                        # logging_string = 'Launch set_mode_rtl command'
-                    # elif (cmd_dict['cmd'] == 'MISSION_MODE'):
-                        # self._mav.set_mode_auto()
-                        # logging_string = 'Launch set_mode_auto command'
-                    # elif(cmd_dict['cmd'] == 'WP_LIST_REQUEST'):
-                        # self._mav.waypoint_request_list_send()
-                        # logging_string = 'Launch waypoint_request_list_send command'
-                    # elif(cmd_dict['cmd'] == 'WP_REQUEST'):
-                        # self._mav.waypoint_request_send(cmd_dict['seq'])
-                        # logging_string = 'Launch waypoint_request_send({0}) command'.format(cmd_dict['seq'])
-                    # if(self._logging):
-                        # logging.debug(logging_string)     
+                cmd_dict = loads(messagedata)
+                if('c' in cmd_dict):
+                    mav = self._thread_mav_dict[target]['mav_h']
+                    cmd = cmd_dict['c']
+                    if('p' in cmd_dict):
+                        param = cmd_dict['p']
+                    try:
+                        logging_string = '{0} : Not yet implemented'.format(cmd)
+                        if (cmd == 'RESET'):
+                            mav.reboot_autopilot()
+                            logging_string = 'Launch reboot_autopilot command'
+                        elif (cmd == 'LOITER_MODE'):
+                            mav.set_mode_loiter()
+                            logging_string = 'Launch set_mode_loiter command'
+                        elif (cmd == 'RTL_MODE'):
+                            mav.set_mode_rtl()
+                            logging_string = 'Launch set_mode_rtl command'
+                        elif (cmd == 'MISSION_MODE'):
+                            mav.set_mode_auto()
+                            logging_string = 'Launch set_mode_auto command'
+                        elif(cmd == 'WP_LIST_REQUEST'):
+                            mav.waypoint_request_list_send()
+                            logging_string = 'Launch waypoint_request_list_send command'
+                        elif(cmd == 'WP_REQUEST'):
+                            mav.waypoint_request_send(param['seq'])
+                            logging_string = 'Launch waypoint_request_send({0}) command'.format(param['seq'])
+                            logging.debug(logging_string)
+                    except:
+                        pass #TODO
+            elif(target == 'IC'): #Internal Command
+                cmd_dict = loads(messagedata)
+                if('c' in cmd_dict):
+                    mav = self._thread_mav_dict[target]['mav_h']
+                    cmd = cmd_dict['c']
+                    if('p' in cmd_dict):
+                        param = cmd_dict['p']
+                    try:
+                        pass #TODO
+                    except:
+                        pass
             else:
                 result = 'Error : Target not valid'
             socket.send(result)
@@ -215,7 +230,7 @@ class MAVLINK_Plug(object):
                 exit(0)
                             
     def verbose(self, switch):
-        if(switch == True or switch == False):
+        if(isinstance(switch, bool)):
             self._verbose = switch
 
 if(__name__ == "__main__"):
@@ -228,7 +243,7 @@ if(__name__ == "__main__"):
     #parser.add_argument("--zmq_in", type=int, help="define ZMQ port to suscribe to external commands", default=42018)
     parser.add_argument("--verbose", help="set verbose output", action="store_true")
     parser.add_argument("--logging", help="log DEBUG info in MAVLINK_plug.log file", action="store_true")
-    parser.add_argument("--prefix", type=str, help="prefix for zmq message (will be followed by connection number)", default="M")
+    parser.add_argument("--prefix", type=str, help="prefix for zmq message (will be followed by connection number)", default="")
     args = parser.parse_args()
  
     my_plug = MAVLINK_Plug(args.prefix)
