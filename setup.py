@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-    Setup file for mavlink_plug.
+    Setup file for mavlinkplug.
 
     This file was generated with PyScaffold 1.0, a tool that easily
     puts up a scaffold for your new Python project. Learn more under:
@@ -22,7 +22,7 @@ __location__ = os.path.join(os.getcwd(), os.path.dirname(
     inspect.getfile(inspect.currentframe())))
 
 # Change these settings according to your needs
-MAIN_PACKAGE = "mavlink_plug"
+MAIN_PACKAGE = "mavlinkplug"
 DESCRIPTION = "None"
 LICENSE = "new BSD"
 URL = "None"
@@ -38,7 +38,7 @@ JUNIT_XML = False
 CLASSIFIERS = ['Development Status :: 4 - Beta',
                'Programming Language :: Python']
 
-# Add here console scripts like ['hello_world = mavlink_plug.module:function']
+# Add here console scripts like ['hello_world = mavlinkplug.module:function']
 CONSOLE_SCRIPTS = ['mavlinkplug = mavlinkplug.cmd_line:mavlinkplug_cmd_line']
 
 # Versioneer configuration
@@ -179,7 +179,7 @@ def setup_package():
                     'source_dir': ('setup.py', docs_path),
                     'builder': ('setup.py', 'doctest')},
         'test': {'test_suite': ('setup.py', 'tests'),
-                 'cov': ('setup.py', 'mavlink_plug')}}
+                 'cov': ('setup.py', 'mavlinkplug')}}
     if JUNIT_XML:
         command_options['test']['junitxml'] = ('setup.py', 'junit.xml')
     if COVERAGE_XML:

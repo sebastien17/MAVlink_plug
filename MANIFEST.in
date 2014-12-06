@@ -1,5 +1,5 @@
 include versioneer.py
 include *.txt
 include *.rst
-recursive-include mavlink_plug *.py *.c *.h *.pxd *.pyx
+recursive-include mavlinkplug *.py *.c *.h *.pxd *.pyx
 recursive-include docs *.rst *.py

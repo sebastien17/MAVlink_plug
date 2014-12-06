@@ -3,7 +3,7 @@
 
 def mavlinkplug_cmd_line():
     import argparse
-    import mavlink_plug
+    import mavlinkplug
     parser = argparse.ArgumentParser()
     parser.add_argument("--mavlink", type=str, help="define MAVLINK input", default="COM8")
     parser.add_argument("--baud", type=int, help="set baud rate if COM connection", default=57600)
@@ -14,7 +14,7 @@ def mavlinkplug_cmd_line():
     parser.add_argument("--logging", help="log DEBUG info in MAVLINK_plug.log file", action="store_true")
     parser.add_argument("--prefix", type=str, help="prefix for zmq message (will be followed by connection number)", default="")
     args = parser.parse_args()
-    my_plug = mavlink_plug.Plug(args.prefix)
+    my_plug = mavlinkplug.Plug(args.prefix)
 
     if(args.verbose):
         my_plug.verbose(True)
