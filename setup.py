@@ -39,7 +39,7 @@ CLASSIFIERS = ['Development Status :: 4 - Beta',
                'Programming Language :: Python']
 
 # Add here console scripts like ['hello_world = mavlink_plug.module:function']
-CONSOLE_SCRIPTS = []
+CONSOLE_SCRIPTS = ['mavlinkplug = mavlinkplug.cmd_line:mavlinkplug_cmd_line']
 
 # Versioneer configuration
 versioneer.VCS = 'git'
