@@ -11,7 +11,7 @@ def mavlinkplug_cmd_line():
     parser.add_argument("--zmq_port_out", type=int, help="define ZMQ port to publish MAVLINK data", default=42017)
     #parser.add_argument("--zmq_in", type=int, help="define ZMQ port to suscribe to external commands", default=42018)
     parser.add_argument("--verbose", help="set verbose output", action="store_true")
-    parser.add_argument("--logging", help="log DEBUG info in MAVLINK_plug.log file", action="store_true")
+    parser.add_argument("--logging", help="log DEBUG info in mavlinkplug.log file", action="store_true")
     parser.add_argument("--prefix", type=str, help="prefix for zmq message (will be followed by connection number)", default="")
     args = parser.parse_args()
     my_plug = mavlinkplug.Plug(args.prefix)
@@ -19,7 +19,7 @@ def mavlinkplug_cmd_line():
     if(args.verbose):
         my_plug.verbose(True)
     if(args.logging):
-        logging.basicConfig(filename='MAVLINK_plug.log',level=logging.DEBUG,format='[%(levelname)s] %(asctime)s (%(threadName)-10s) %(message)s', filemode = 'w')
+        logging.basicConfig(filename='mavlinkplug.log',level=logging.DEBUG,format='[%(levelname)s] %(asctime)s (%(threadName)-10s) %(message)s', filemode = 'w')
     my_plug.MAVLINK_connection(args.mavlink, baud=args.baud, dialect=args.dialect)
     my_plug.ZMQ_publisher(args.zmq_port_out)
     my_plug.server_forever()

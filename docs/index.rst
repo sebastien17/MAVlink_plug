@@ -1,8 +1,8 @@
 ============
-MAVlink_plug
+mavlinkplug
 ============
 
-This is the documentation of **MAVlink_plug**.
+This is the documentation of **mavlinkplug**.
 
 .. note::
 

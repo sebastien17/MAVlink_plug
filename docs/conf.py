@@ -20,7 +20,7 @@ __location__ = os.path.join(os.getcwd(), os.path.dirname(
 import subprocess
 
 output_dir = os.path.join(__location__, "../docs/_rst")
-module_dir = os.path.join(__location__, "../MAVlink_plug")
+module_dir = os.path.join(__location__, "../mavlinkplug")
 cmd_line_template = "sphinx-apidoc -f -o {outputdir} {moduledir}"
 cmd_line = cmd_line_template.format(outputdir=output_dir, moduledir=module_dir)
 subprocess.call(cmd_line, shell=True)
@@ -55,7 +55,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'MAVlink_plug'
+project = u'mavlinkplug'
 copyright = u'2014, sebastien17'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -122,7 +122,7 @@ html_theme = 'default'
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
 try:
-    from mavlink_plug import __version__ as version
+    from mavlinkplug import __version__ as version
 except ImportError:
     pass
 else:
@@ -187,7 +187,7 @@ html_static_path = ['_static']
 # html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'mavlink_plug-doc'
+htmlhelp_basename = 'mavlinkplug-doc'
 
 
 # -- Options for LaTeX output --------------------------------------------------
@@ -206,7 +206,7 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-  ('index', 'user_guide.tex', u'MAVlink_plug Documentation',
+  ('index', 'user_guide.tex', u'mavlinkplug Documentation',
    u'sebastien17', 'manual'),
 ]
 

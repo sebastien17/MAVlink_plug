@@ -23,7 +23,7 @@ __location__ = os.path.join(os.getcwd(), os.path.dirname(
 
 # Change these settings according to your needs
 MAIN_PACKAGE = "mavlinkplug"
-DESCRIPTION = "None"
+DESCRIPTION = "Plug to send decrypted MAVlink messages over ZMQ protocoles"
 LICENSE = "new BSD"
 URL = "None"
 AUTHOR = "sebastien17"
@@ -36,7 +36,10 @@ JUNIT_XML = False
 # Add here all kinds of additional classifiers as defined under
 # https://pypi.python.org/pypi?%3Aaction=list_classifiers
 CLASSIFIERS = ['Development Status :: 4 - Beta',
-               'Programming Language :: Python']
+               'Programming Language :: Python',
+               'Intended Audience :: Developers',
+               'License :: OSI Approved :: BSD License',
+               'Topic :: Utilities']
 
 # Add here console scripts like ['hello_world = mavlinkplug.module:function']
 CONSOLE_SCRIPTS = ['mavlinkplug = mavlinkplug.cmd_line:mavlinkplug_cmd_line']

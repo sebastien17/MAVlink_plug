@@ -85,17 +85,17 @@ qthelp:
 	@echo
 	@echo "Build finished; now you can run "qcollectiongenerator" with the" \
 	      ".qhcp project file in $(BUILDDIR)/qthelp, like this:"
-	@echo "# qcollectiongenerator $(BUILDDIR)/qthelp/MAVlink_plug.qhcp"
+	@echo "# qcollectiongenerator $(BUILDDIR)/qthelp/mavlinkplug.qhcp"
 	@echo "To view the help file:"
-	@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/MAVlink_plug.qhc"
+	@echo "# assistant -collectionFile $(BUILDDIR)/qthelp/mavlinkplug.qhc"
 
 devhelp:
 	$(SPHINXBUILD) -b devhelp $(ALLSPHINXOPTS) $(BUILDDIR)/devhelp
 	@echo
 	@echo "Build finished."
 	@echo "To view the help file:"
-	@echo "# mkdir -p $HOME/.local/share/devhelp/MAVlink_plug"
-	@echo "# ln -s $(BUILDDIR)/devhelp $HOME/.local/share/devhelp/MAVlink_plug"
+	@echo "# mkdir -p $HOME/.local/share/devhelp/mavlinkplug"
+	@echo "# ln -s $(BUILDDIR)/devhelp $HOME/.local/share/devhelp/mavlinkplug"
 	@echo "# devhelp"
 
 epub:

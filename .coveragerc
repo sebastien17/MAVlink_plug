@@ -1,7 +1,7 @@
 # .coveragerc to control coverage.py
 [run]
 branch = True
-source = mavlink_plug
+source = mavlinkplug
 omit = */_version.py
 
 [report]
