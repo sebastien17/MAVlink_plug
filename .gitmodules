@@ -1,0 +1,9 @@
+[submodule "Flight Indicator"]
+	path = mavlinkplug/tools/statics/vendor/fi
+	url = https:/github.com/sebmatton/jQuery-Flight-Indicators
+[submodule "Cesium JS"]
+	path = mavlinkplug/tools/statics/vendor/cesiumjs
+	url = https:/github.com/mixxen/cesiumjs
+[submodule "AppendGrid"]
+	path = mavlinkplug/tools/statics/vendor/appendGrid
+	url = https:/github.com/hkalbertl/jquery.appendGrid
