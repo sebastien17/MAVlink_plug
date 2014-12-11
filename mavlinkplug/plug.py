@@ -12,6 +12,7 @@ from json import dumps, loads
 
 #Threading decorator definition
 def in_thread(fn):
+    '''Decorator to create a threaded function '''
     def wrapper(*args, **kwargs):
         t = threading.Thread(target=fn, args=args, kwargs=kwargs)
         t.setDaemon(True)
@@ -19,15 +20,15 @@ def in_thread(fn):
         return t
     return wrapper
 
-    
+
 class Plug(object):
-    
+    '''Main class to manage the plug '''
     def __init__(self, prefix):
         self._zmq_context = zmq.Context()
         self._bridge_thread = self._bridge()
         self._thread_mav_dict = {}                              #Thread list for MAVLINK connection
         self._thread_other_dict = {}                            #Thread list for other than MAVLINK connection
-        self._count = [0,0,0,0]                                 #Message  count
+        self._count = [0,0,0,0,0]                                 #Message  count
         self._verbose = False
         self._prefix_string = prefix
         
@@ -37,7 +38,7 @@ class Plug(object):
 
     @in_thread
     def _bridge(self):
-        ''' Create the ZMQ bridge between in & out'''
+        '''Create the ZMQ bridge between in & out'''
         self._print('Creating in process bridge')
         socket_in =  self._zmq_context.socket(zmq.SUB)
         socket_in.bind('inproc://in')                           #Bind because most stable
@@ -53,13 +54,13 @@ class Plug(object):
     def MAVLINK_connection(self,*argv, **kwargs):
         connection_in_number = len(self._thread_mav_dict)        #Define the number of the connection
         ident = '{0}{1:02d}'.format(self._prefix_string,connection_in_number)
-        self._thread_mav_dict[ident] = {'thread' : threading.currentThread(), 'run' : True }     #Auto registration of the thread
+        self._thread_mav_dict[ident] = {'thread' : threading.currentThread(), 'run' : True, 'info' : {'argv': argv, 'kwargw': kwargs}}  #Auto registration of the thread
         
         def try_connection():
             self._print('Initialising MAVLINK connection {0}'.format(ident))
             while(self._thread_mav_dict[ident]['run']):
                 try:
-                    result = mavutil.mavlink_connection(*argv,**kwargs) # TODO : monkey_patch
+                    result = mavutil.mavlink_connection(*argv,**kwargs)
                 except:
                     sleep(1)                                #Wait 1 second until next try
                 else:
@@ -80,22 +81,23 @@ class Plug(object):
                 self._thread_mav_dict[ident]['mav_h'] = try_connection()
             else:
                 if msg is not None:
-                    if (msg.get_type() != 'BAD DATA'):      #BAD DATA message ignored
+                    d_type = msg.get_type()
+                    if (d_type != 'BAD DATA' and d_type != 'BAD_DATA'):      #BAD DATA message ignored
                         self._count[0] += 1
                         data = {}
-                        d_type = msg.get_type()
                         data[d_type] = {}
                         for i in msg.get_fieldnames():
                             data[d_type][i]=msg.__dict__[i]
                         try:
                             json_data = dumps(data)
                         except:
-                            pass                            #TODO : some smart logic to avoid : 'UnicodeDecodeError: 'utf8' codec can't decode byte 0xc9 in position 0: unexpected end of data'
+                            pass
                         else:
-                            string = "{0} {1}".format(ident, json_data)
+                            string = "D{0} {1:.3f} {2}".format(ident, msg._timestamp , json_data)
                             self._count[1] += 1
                             socket.send(string)
                             logging.debug(string)
+
         socket.close()
         self._print('MAVLINK_connection {0} loop stop'.format(ident))
     
@@ -103,7 +105,7 @@ class Plug(object):
     def ZMQ_publisher(self, port):
         connection_out_number = len(self._thread_other_dict)                  #Define the number of the connection
         ident = '{0:02d}'.format(connection_out_number)
-        self._thread_other_dict[ident] = {'thread' : threading.currentThread(), 'run' : True }     #Auto registration of the thread
+        self._thread_other_dict[ident] = {'thread' : threading.currentThread(), 'run' : True}     #Auto registration of the thread
 
         socket_in = self._zmq_context.socket(zmq.SUB)
         socket_in.connect('inproc://out')                           #Connect to bridge output
@@ -123,16 +125,14 @@ class Plug(object):
         
     @in_thread
     def Plugin(self, funct, infinite = False,*argv, **kwargs):
-        ##########################################################
-        #
-        #Plugin wrapper
-        #The plugin function has to take a zmq subscriber socket (blocking socket) as first argument
-        #It will be run in a new thread 
-        #
-        ##########################################################
+        '''
+        Plugin wrapper
+        The plugin function has to take a zmq subscriber socket (blocking socket) as first argument
+        It will be run in a new thread 
+n       '''
         connection_out_number = len(self._thread_other_dict)                  #Define the number of the connection
         ident = '{0:2d}'.format(connection_out_number)
-        self._thread_other_dict[ident] = {'thread' : threading.currentThread(), 'run' : True }     #Auto registration of the thread
+        self._thread_other_dict[ident] = {'thread' : threading.currentThread(), 'run' : True, 'info' : {'argv': argv, 'kwargw': kwargs} }     #Auto registration of the thread
 
 
         socket_in = self._zmq_context.socket(zmq.SUB)
@@ -224,10 +224,11 @@ class Plug(object):
             try:
                 sleep(1)
                 if (self._verbose):
-                    print('[MAVLINK IN, ZQM OUT, ZQM IN] : {0}'.format(self._count))
+                    print('[MAVLINK IN, MAVLINK ZQM OUT, BRIDGE IN,PLUG ZQM OUT, PLUG ZQM IN] : {0} {1}'.format(self._count,float(self._count[1])/self._count[0]))
             except(KeyboardInterrupt, SystemExit):
                 string = 'Exit called !!\nRecv/Send: {0}'.format(self._count)
                 self._print(string)
+                self._print(self._thread_mav_dict)
                 exit(0)
                             
     def verbose(self, switch):

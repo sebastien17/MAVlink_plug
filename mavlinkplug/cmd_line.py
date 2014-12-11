@@ -3,6 +3,7 @@
 
 def mavlinkplug_cmd_line():
     import argparse
+    import logging
     import mavlinkplug
     parser = argparse.ArgumentParser()
     parser.add_argument("--mavlink", type=str, help="define MAVLINK input", default="COM8")
@@ -24,3 +25,6 @@ def mavlinkplug_cmd_line():
     my_plug.ZMQ_publisher(args.zmq_port_out)
     my_plug.server_forever()
  
+ 
+if __name__ == "__main__":
+    mavlinkplug_cmd_line()
