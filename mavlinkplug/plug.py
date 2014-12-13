@@ -82,6 +82,8 @@ class Plug(object):
             else:
                 if msg is not None:
                     d_type = msg.get_type()
+                    e_string  = 'E{0} {1:.3f} {2}'.format(ident, msg._timestamp,msg.get_msgbuf())
+                    socket.send(e_string)
                     if (d_type != 'BAD DATA' and d_type != 'BAD_DATA'):      #BAD DATA message ignored
                         self._count[0] += 1
                         data = {}
@@ -97,7 +99,6 @@ class Plug(object):
                             self._count[1] += 1
                             socket.send(string)
                             logging.debug(string)
-
         socket.close()
         self._print('MAVLINK_connection {0} loop stop'.format(ident))
     
@@ -122,7 +123,8 @@ class Plug(object):
         socket_in.close()
         socket_out.close()
         self._print('ZMQ_publisher {0} loop start'.format(ident))
-        
+    
+   
     @in_thread
     def Plugin(self, funct, infinite = False,*argv, **kwargs):
         '''
@@ -224,7 +226,7 @@ n       '''
             try:
                 sleep(1)
                 if (self._verbose):
-                    print('[MAVLINK IN, MAVLINK ZQM OUT, BRIDGE IN,PLUG ZQM OUT, PLUG ZQM IN] : {0} {1}'.format(self._count,float(self._count[1])/self._count[0]))
+                    print('[MAVLINK IN, MAVLINK ZQM OUT, BRIDGE IN,PLUG ZQM OUT, PLUG ZQM IN] : {0}'.format(self._count))
             except(KeyboardInterrupt, SystemExit):
                 string = 'Exit called !!\nRecv/Send: {0}'.format(self._count)
                 self._print(string)
