@@ -2,29 +2,47 @@
 # -*- coding: utf-8 -*-
 
 def mavlinkplug_cmd_line():
-    import argparse
-    import logging
-    import mavlinkplug
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--mavlink", type=str, help="define MAVLINK input", default="COM8")
-    parser.add_argument("--baud", type=int, help="set baud rate if COM connection", default=57600)
-    parser.add_argument("--dialect", type=str, help="define MAVLINK dialect", default="pixhawk")
-    parser.add_argument("--zmq_port_out", type=int, help="define ZMQ port to publish MAVLINK data", default=42017)
-    #parser.add_argument("--zmq_in", type=int, help="define ZMQ port to suscribe to external commands", default=42018)
-    parser.add_argument("--verbose", help="set verbose output", action="store_true")
-    parser.add_argument("--logging", help="log DEBUG info in mavlinkplug.log file", action="store_true")
-    parser.add_argument("--prefix", type=str, help="prefix for zmq message (will be followed by connection number)", default="")
-    args = parser.parse_args()
-    my_plug = mavlinkplug.Plug(args.prefix)
+    doc = '''mavlinkplug
+    This tools has to be plugged to a MAVLINK device.
+    It can redirect MAVLINK message to:
+        - TCP port (to connect Ground Station for example)
+        - ZMQ port
+        - Log file
+        
 
-    if(args.verbose):
+    Usage:
+      mavlinkplug <mavlink> [--baud=<baud_rate>] [--dialect=<dialect>] [--tcp=<tcp_port>] [--file=<file>] [--zmq=<zmq_port>] [--verbose]
+      
+    Options:
+      --baud=<baud_rate>    Define baud rate for a MAVLINK serial connection
+      --dialect=<dialect>   Define dialect for a MAVLINK connection
+      --tcp=<tcp_port>      Active and define the tcp output on <tcp_port>
+      --file=<file>         Active and define the file output in <file>
+      --zmq=<zmq_port>      Active and define the zmq output on <tcp_port>
+      --verbose             Show modules information
+      -h --help             Show this screen.
+    '''
+    
+    import docopt
+    import mavlinkplug
+    
+    arguments = docopt.docopt(doc)
+    print('MAVLINK Connection : {0}'.format(arguments['<mavlink>']))
+    mavlink_connection_args = {}
+    if (arguments['--baud'] != None):
+        mavlink_connection_args['baud'] = arguments['--baud']
+        print('Baud : {0}'.format(arguments['--baud']))
+    if (arguments['--dialect'] != None):
+        mavlink_connection_args['dialect'] = arguments['--dialect']   
+        print('Dialect : {0}'.format(arguments['--dialect']))
+    my_plug = mavlinkplug.Plug()
+    mav_con01 = my_plug.MAVLINK_in(arguments['<mavlink>'], **mavlink_connection_args)
+    if(arguments['--tcp'] != None):
+        my_plug.TCP_in_out(mav_con01,'127.0.0.1',int(arguments['--tcp']))
+    if(arguments['--file'] != None):
+         my_plug.FILE_out(arguments['--file'])
+    if(arguments['--zmq'] != None):
+        my_plug.ZMQ_out(arguments['--zmq'])
+    if(arguments['--verbose'] == True):
         my_plug.verbose(True)
-    if(args.logging):
-        logging.basicConfig(filename='mavlinkplug.log',level=logging.DEBUG,format='[%(levelname)s] %(asctime)s (%(threadName)-10s) %(message)s', filemode = 'w')
-    my_plug.MAVLINK_connection(args.mavlink, baud=args.baud, dialect=args.dialect)
-    my_plug.ZMQ_publisher(args.zmq_port_out)
     my_plug.server_forever()
- 
- 
-if __name__ == "__main__":
-    mavlinkplug_cmd_line()

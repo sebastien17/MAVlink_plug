@@ -1,3 +1,4 @@
 pymavlink>=1.1.36
 pyserial>=2.7
 pyzmq>=14.3.1
+docopt>=0.6.2

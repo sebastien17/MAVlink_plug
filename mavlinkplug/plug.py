@@ -1,238 +1,292 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 from __future__ import print_function
 
-#Import 
+#Import
 import zmq
 import logging
 import threading
+import socket
 from pymavlink import mavutil
 from time import sleep, time
 from json import dumps, loads
 
 #Threading decorator definition
-def in_thread(fn):
-    '''Decorator to create a threaded function '''
-    def wrapper(*args, **kwargs):
-        t = threading.Thread(target=fn, args=args, kwargs=kwargs)
-        t.setDaemon(True)
-        t.start()
-        return t
-    return wrapper
+def in_thread(isDaemon = True):
+    def base_in_thread(fn):
+        '''Decorator to create a threaded function '''
+        def wrapper(*args, **kwargs):
+            t = threading.Thread(target=fn, args=args, kwargs=kwargs)
+            t.setDaemon(isDaemon)
+            t.start()
+            return t
+        return wrapper
+    return base_in_thread
 
+def _print(_string):
+    print(_string)
+    logging.info(_string)
 
-class Plug(object):
-    '''Main class to manage the plug '''
-    def __init__(self, prefix):
-        self._zmq_context = zmq.Context()
-        self._bridge_thread = self._bridge()
-        self._thread_mav_dict = {}                              #Thread list for MAVLINK connection
-        self._thread_other_dict = {}                            #Thread list for other than MAVLINK connection
-        self._count = [0,0,0,0,0]                                 #Message  count
-        self._verbose = False
-        self._prefix_string = prefix
-        
-    def __del__(self):
-        self._zmq_context.destroy()
-        logging.shutdown()
-
-    @in_thread
-    def _bridge(self):
-        '''Create the ZMQ bridge between in & out'''
-        self._print('Creating in process bridge')
-        socket_in =  self._zmq_context.socket(zmq.SUB)
-        socket_in.bind('inproc://in')                           #Bind because most stable
-        socket_in.setsockopt(zmq.SUBSCRIBE, '')
-        socket_out =  self._zmq_context.socket(zmq.PUB)
-        socket_out.bind('inproc://out')                         #Bind because most stable
-        while (True):
-            string = socket_in.recv()                           #Yield to event loop
-            self._count[2] += 1
-            socket_out.send(string)
+class ModBase(object):
+    ''' Base class for all mods'''
+    def __init__(self):
+        self._run = False
+        self._thread = None
+        self.isDaemon = True
+        self._ident = ''
+    def _mod(self):
+        pass
+    def run(self):
+        self._run = True
+        @in_thread(self.isDaemon)
+        def __t():
+            self._mod()
+        self._thread = __t()
+    def stop(self):
+        self._run = False
+    def ident(self):
+        '''Return connection ident'''
+        return self._ident
+    def info(self):
+        '''Return connection information'''
+        return {}
     
-    @in_thread
-    def MAVLINK_connection(self,*argv, **kwargs):
-        connection_in_number = len(self._thread_mav_dict)        #Define the number of the connection
-        ident = '{0}{1:02d}'.format(self._prefix_string,connection_in_number)
-        self._thread_mav_dict[ident] = {'thread' : threading.currentThread(), 'run' : True, 'info' : {'argv': argv, 'kwargw': kwargs}}  #Auto registration of the thread
-        
-        def try_connection():
-            self._print('Initialising MAVLINK connection {0}'.format(ident))
-            while(self._thread_mav_dict[ident]['run']):
+class Bridge(ModBase):
+        def __init__(self, zmq_context):
+            super(Bridge, self).__init__()
+            self._zmq_context = zmq_context
+        def _mod(self):
+            '''Create the ZMQ bridge between in & out'''
+            socket_in =  self._zmq_context.socket(zmq.SUB)
+            socket_in.bind('inproc://in')                           #Bind because most stable
+            socket_in.setsockopt(zmq.SUBSCRIBE, '')
+            socket_out =  self._zmq_context.socket(zmq.PUB)
+            socket_out.bind('inproc://out')                         #Bind because most stable
+            while (self._run):
+                string = socket_in.recv()                           #Yield to event loop
+                socket_out.send(string)    
+            socket.close()
+            
+class MAVLINK_connection(ModBase):
+        def __init__(self, zmq_context, ident, *argv, **kwargs):
+            super(MAVLINK_connection, self).__init__()
+            self._zmq_context = zmq_context
+            self.isDaemon = False
+            self._argv = argv
+            self._kwargs = kwargs
+            self._ident = ident
+            self._mavh = None
+            self._in_msg = 0
+            self._ok_msg = 0
+            self._out_msg = 0
+        def try_connection(self):
+            self._mavh = None
+            _print('MAVLINK connection {0} initialising'.format(self._ident))
+            while(self._run):
                 try:
-                    result = mavutil.mavlink_connection(*argv,**kwargs)
+                    self._mavh = mavutil.mavlink_connection(*self._argv,**self._kwargs)
                 except:
+                    self._mavh = None
                     sleep(1)                                #Wait 1 second until next try
                 else:
                     break
-            self._print('MAVLINK connection {0} acquired'.format(ident))
-            return result
-        
-        socket =  self._zmq_context.socket(zmq.PUB)
-        socket.connect('inproc://in')                       #New socket which publish to the bridge
-        self._thread_mav_dict[ident]['mav_h'] = try_connection()
-        
-        self._print('MAVLINK_connection {0} loop start'.format(ident))
-        while(self._thread_mav_dict[ident]['run']):
-            try:
-                msg = self._thread_mav_dict[ident]['mav_h'].recv_msg()                        #Blocking TBC
-            except:
-                self._print('MAVLINK connection {0} lost'.format(ident))
-                self._thread_mav_dict[ident]['mav_h'] = try_connection()
-            else:
-                if msg is not None:
-                    d_type = msg.get_type()
-                    e_string  = 'E{0} {1:.3f} {2}'.format(ident, msg._timestamp,msg.get_msgbuf())
-                    socket.send(e_string)
-                    if (d_type != 'BAD DATA' and d_type != 'BAD_DATA'):      #BAD DATA message ignored
-                        self._count[0] += 1
-                        data = {}
-                        data[d_type] = {}
-                        for i in msg.get_fieldnames():
-                            data[d_type][i]=msg.__dict__[i]
-                        try:
-                            json_data = dumps(data)
-                        except:
-                            pass
-                        else:
-                            string = "D{0} {1:.3f} {2}".format(ident, msg._timestamp , json_data)
-                            self._count[1] += 1
-                            socket.send(string)
-                            logging.debug(string)
-        socket.close()
-        self._print('MAVLINK_connection {0} loop stop'.format(ident))
-    
-    @in_thread
-    def ZMQ_publisher(self, port):
-        connection_out_number = len(self._thread_other_dict)                  #Define the number of the connection
-        ident = '{0:02d}'.format(connection_out_number)
-        self._thread_other_dict[ident] = {'thread' : threading.currentThread(), 'run' : True}     #Auto registration of the thread
+            _print('MAVLINK connection {0} acquired'.format(self._ident))
+        def _mod(self):
+            socket =  self._zmq_context.socket(zmq.PUB)
+            socket.connect('inproc://in')                       #New socket which publish to the bridge
+            self.try_connection()
+            _print('MAVLINK_connection {0} loop start'.format(self._ident))
+            while(self._run):
+                try:
+                    msg = self._mavh.recv_msg()                        #Blocking TBC
+                except:
+                    _print('MAVLINK connection {0} lost'.format(self._ident))
+                    self.try_connection()
+                else:
+                    if msg is not None:
+                        d_type = msg.get_type()
+                        e_string  = 'B{0} {1:.3f} {2}'.format(self._ident, msg._timestamp,msg.get_msgbuf())
+                        socket.send(e_string)
+                        self._in_msg += 1
+                        if (d_type != 'BAD DATA' and d_type != 'BAD_DATA'):      #BAD DATA message ignored
+                            self._ok_msg += 1
+                            data = {}
+                            data[d_type] = {}
+                            for i in msg.get_fieldnames():
+                                data[d_type][i]=msg.__dict__[i]
+                            try:
+                                json_data = dumps(data)
+                            except:
+                                pass
+                            else:
+                                d_string = "C{0} {1:.3f} {2}".format(self._ident, msg._timestamp , json_data)
+                                self._out_msg += 1
+                                socket.send(d_string)
+            _print('MAVLINK_connection {0} loop stop'.format(self._ident))
+            socket.close()
+        def pymavlink_handle(self):
+            return self._mavh
+        def info(self):
+            return {'ident' :  self._ident, 'argv': self._argv, 'kwargs': self._kwargs, 'msg_stats': {'in_msg': self._in_msg, 'ok_msg': self._ok_msg, 'out_msg': self._out_msg}}
 
+class ZMQ_publisher(ModBase):
+    def __init__(self, zmq_context, ident,  port):
+        super(ZMQ_publisher, self).__init__()
+        self._zmq_context = zmq_context
+        self._ident = ident
+        self._port = port
+        self._out_msg = 0
+    def _mod(self):
         socket_in = self._zmq_context.socket(zmq.SUB)
         socket_in.connect('inproc://out')                           #Connect to bridge output
         socket_in.setsockopt(zmq.SUBSCRIBE, '')                     #No filter
         socket_out = self._zmq_context.socket(zmq.PUB)              #Zmq publisher
-        socket_out.bind("tcp://*:%s" % port)
-        
-        self._print('ZMQ_publisher {0} loop start'.format(ident))
-        while(self._thread_other_dict[ident]['run']):
+        socket_out.bind("tcp://*:%s" % self._port)
+        _print('ZMQ_publisher {0} loop start'.format(self._ident))
+        while(self._run):
             string = socket_in.recv()
             socket_out.send(string)
-            self._count[3] += 1
-        
+            self._out_msg += 1
         socket_in.close()
         socket_out.close()
-        self._print('ZMQ_publisher {0} loop start'.format(ident))
-    
-   
-    @in_thread
-    def Plugin(self, funct, infinite = False,*argv, **kwargs):
-        '''
-        Plugin wrapper
-        The plugin function has to take a zmq subscriber socket (blocking socket) as first argument
-        It will be run in a new thread 
-n       '''
-        connection_out_number = len(self._thread_other_dict)                  #Define the number of the connection
-        ident = '{0:2d}'.format(connection_out_number)
-        self._thread_other_dict[ident] = {'thread' : threading.currentThread(), 'run' : True, 'info' : {'argv': argv, 'kwargw': kwargs} }     #Auto registration of the thread
-
-
+        _print('ZMQ_publisher {0} loop stop'.format(self._ident))
+    def info(self):
+            return {'ident' :  self._ident, 'port': self._port, 'msg_stats': {'out_msg': self._out_msg}}
+           
+class FILE_writer(ModBase):
+    def __init__(self, zmq_context, ident, file):
+        super(FILE_writer, self).__init__()
+        self._zmq_context = zmq_context
+        self._ident = ident
+        self._file = file
+        self._out_msg = 0
+    def _mod(self):
         socket_in = self._zmq_context.socket(zmq.SUB)
         socket_in.connect('inproc://out')                           #Connect to bridge output
-        socket_in.setsockopt(zmq.SUBSCRIBE, '')
-        
-        if(infinite):
-            self._print('Plugin {0} loop start'.format(ident))
-            while(self._thread_other_dict[ident]['run']):
-                funct(socket_in, *argv, **kwargs)                           
-            self._print('Plugin {0} loop stop'.format(ident))
-        else:
-            self._print('Plugin {0} one shot start'.format(ident))
-            funct(socket_in, *argv, **kwargs)                           
-            self._print('Plugin {0} one shot stop'.format(ident))
-        socket_in.close()
+        socket_in.setsockopt(zmq.SUBSCRIBE, 'C')                    #Take only uncrypted data
+        _print('FILE_writer {0} loop start'.format(self._ident))
+        with open(self._file, 'w', 500) as f:
+            while(self._run):
+                string = socket_in.recv()
+                print(string, file=f)
+                self._out_msg += 1
+        _print('FILE_writer {0} loop stop'.format(self._ident))
+    def info(self):
+        return {'ident' :  self._ident, 'file': self._file, 'msg_stats': {'out_msg': self._out_msg}}
 
-    @in_thread
-    def ZQM_reply(self, port):
-        connection_out_number = len(self._thread_other_dict)                  #Define the number of the connection
-        ident = '{0:02d}'.format(connection_out_number)
-        self._thread_other_dict[ident] = {'thread' : threading.currentThread(), 'run' : True }     #Auto registration of the thread
-
-        #Bind to external port
-        socket = self._zmq_context.socket(zmq.REP)              #Zmq publisher
-        socket.bind("tcp://*:%s" % port)
-        
-        self._print('ZMQ_reply {0} loop start'.format(ident))
-        while(self._thread_other_dict[ident]['run']):
-            string = socket.recv()
-            logging.debug(string)
-            target, messagedata = string.split(" ",1)
-            cmd_dict = loads(messagedata)
-            if(target in self._thread_mav_dict):
-                cmd_dict = loads(messagedata)
-                if('c' in cmd_dict):
-                    mav = self._thread_mav_dict[target]['mav_h']
-                    cmd = cmd_dict['c']
-                    if('p' in cmd_dict):
-                        param = cmd_dict['p']
-                    try:
-                        logging_string = '{0} : Not yet implemented'.format(cmd)
-                        if (cmd == 'RESET'):
-                            mav.reboot_autopilot()
-                            logging_string = 'Launch reboot_autopilot command'
-                        elif (cmd == 'LOITER_MODE'):
-                            mav.set_mode_loiter()
-                            logging_string = 'Launch set_mode_loiter command'
-                        elif (cmd == 'RTL_MODE'):
-                            mav.set_mode_rtl()
-                            logging_string = 'Launch set_mode_rtl command'
-                        elif (cmd == 'MISSION_MODE'):
-                            mav.set_mode_auto()
-                            logging_string = 'Launch set_mode_auto command'
-                        elif(cmd == 'WP_LIST_REQUEST'):
-                            mav.waypoint_request_list_send()
-                            logging_string = 'Launch waypoint_request_list_send command'
-                        elif(cmd == 'WP_REQUEST'):
-                            mav.waypoint_request_send(param['seq'])
-                            logging_string = 'Launch waypoint_request_send({0}) command'.format(param['seq'])
-                            logging.debug(logging_string)
-                    except:
-                        pass #TODO
-            elif(target == 'IC'): #Internal Command
-                cmd_dict = loads(messagedata)
-                if('c' in cmd_dict):
-                    mav = self._thread_mav_dict[target]['mav_h']
-                    cmd = cmd_dict['c']
-                    if('p' in cmd_dict):
-                        param = cmd_dict['p']
-                    try:
-                        pass #TODO
-                    except:
-                        pass
+class TCP_connection(ModBase):
+    def __init__(self, zmq_context, ident, mav, address, port):
+        super(TCP_connection, self).__init__()
+        self._zmq_context = zmq_context
+        self._zmq_socket = None
+        self._ident = ident
+        self._mav = mav
+        self._address = (address, port)
+        self._out_msg = 0
+        self._in_msg = 0
+        self._connection_h = None
+        self._connection_activated = False
+        self._connection_address = None
+    def _mod(self):
+        #ZMQ socket
+        self._zmq_socket = self._zmq_context.socket(zmq.SUB)
+        self._zmq_socket.connect('inproc://out')                           #Connect to bridge output
+        self._zmq_socket.setsockopt(zmq.SUBSCRIBE, 'B' + self._mav.ident()) #Filter on encrypted message with mav ident
+        #Regular socket
+        r_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # TCP
+        r_socket.bind(self._address)
+        while(self._run):
+            if(self._connection_activated == False):
+                if(self._connection_h != None):
+                    self._connection_h.close()
+                _print('TCP_connection {0} waiting '.format(self._ident))
+                r_socket.listen(1)
+                self._connection_h, self._connection_address = r_socket.accept()
+                self._connection_activated = True
+                _print('TCP_connection {0} : connected to {1}'.format(self._ident, self._connection_address))
+                #Launch threaded functions
+                self._mav_2_socket()
+                self._socket_2_mav()
+            sleep(1)
+    @in_thread(True)
+    def _mav_2_socket(self):
+        _print('TCP_connection : mav to socket {0} loop start'.format(self._ident))
+        while(self._connection_activated):
+            string = self._zmq_socket.recv()
+            out_data = string.split(' ',2)[2]
+            try:
+                self._connection_h.send(out_data)
+                self._out_msg += 1
+            except:
+                self._connection_activated = False
+    @in_thread(True)
+    def _socket_2_mav(self):
+        _print('TCP_connection : socket to mav {0} loop start'.format(self._ident))
+        while(self._connection_activated):
+            try:
+                in_data = self._connection_h.recv(4096)
+                self._in_msg += 1
+            except:
+                self._connection_activated = False
             else:
-                result = 'Error : Target not valid'
-            socket.send(result)
-            self._count[4] += 1
-        
-        socket.close()
-        self._print('ZMQ_reply {0} loop start'.format(ident))
-        
-    def _print(self, _string):
-        print(_string)
-        logging.info(_string)
-        
+                py_h = self._mav.pymavlink_handle()
+                if(py_h != None):
+                    py_h.write(in_data)
+    def info(self):
+        return {'ident' :  self._ident, 'address': self._address, 'msg_stats': {'out_msg': self._out_msg,'in_msg': self._in_msg, 'connection activated': self._connection_activated}}
+class Plug(object):
+    '''Main class to manage the plug '''
+    def __init__(self):
+        print('Initialising Plug')
+        self._zmq_context = zmq.Context()
+        self._bridge = Bridge(self._zmq_context)
+        self._bridge.run()
+        self._input_list = []                               #Thread list for MAVLINK connection
+        self._output_list = []                              #Thread list for other than MAVLINK connection
+        self._verbose = False
+    def MAVLINK_in(self, *argv, **kwargs):
+        ident = '{0:02d}'.format(len(self._input_list))
+        h = MAVLINK_connection(self._zmq_context, ident, *argv, **kwargs)
+        h.run()
+        self._input_list.append(h)
+        return h
+    def ZMQ_out(self, port):
+        ident = '{0:02d}'.format(len(self._output_list))
+        h = ZMQ_publisher(self._zmq_context, ident, port)
+        h.run()
+        self._output_list.append(h)
+        return h
+    def FILE_out(self, file):
+        ident = '{0:02d}'.format(len(self._output_list))
+        h = FILE_writer(self._zmq_context, ident, file)
+        h.run()
+        self._output_list.append(h)
+        return h
+    def TCP_in_out(self, mavlink_connection, address, port):
+        ident = '{0:02d}'.format(len(self._output_list))
+        h = TCP_connection(self._zmq_context, ident, mavlink_connection, address, port)
+        h.run()
+        self._output_list.append(h)
+        return h
+    def verbose(self, switch):
+        if(isinstance(switch, bool)):
+            self._verbose = switch
+    
     def server_forever(self):
         while(True):
             try:
                 sleep(1)
-                if (self._verbose):
-                    print('[MAVLINK IN, MAVLINK ZQM OUT, BRIDGE IN,PLUG ZQM OUT, PLUG ZQM IN] : {0}'.format(self._count))
+                if(self._verbose):
+                    for connection in self._input_list:
+                        print('IN {0} {1}'.format(connection.info()['ident'], connection.info()['msg_stats']))
+                    for connection in self._output_list:
+                        print('OUT {0} {1}'.format(connection.info()['ident'], connection.info()['msg_stats']))
             except(KeyboardInterrupt, SystemExit):
-                string = 'Exit called !!\nRecv/Send: {0}'.format(self._count)
-                self._print(string)
-                self._print(self._thread_mav_dict)
-                exit(0)
-                            
-    def verbose(self, switch):
-        if(isinstance(switch, bool)):
-            self._verbose = switch
+                string = 'Exit called !!'
+                print(string)
+                print('Closing Plug')
+                for conn in self._input_list + self._output_list:
+                    conn.stop()
+                self._bridge.stop()
+                break
