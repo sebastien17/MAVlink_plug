@@ -81,7 +81,7 @@ class MAVLINK_connection(ModBase):
             self._out_msg = 0
         def try_connection(self):
             self._mavh = None
-            _print('Initialising MAVLINK connection {0}'.format(self._ident))
+            _print('MAVLINK connection {0} initialising'.format(self._ident))
             while(self._run):
                 try:
                     self._mavh = mavutil.mavlink_connection(*self._argv,**self._kwargs)
@@ -180,42 +180,58 @@ class TCP_connection(ModBase):
     def __init__(self, zmq_context, ident, mav, address, port):
         super(TCP_connection, self).__init__()
         self._zmq_context = zmq_context
+        self._zmq_socket = None
         self._ident = ident
         self._mav = mav
         self._address = (address, port)
         self._out_msg = 0
         self._in_msg = 0
+        self._connection_h = None
+        self._connection_activated = False
+        self._connection_address = None
     def _mod(self):
         #ZMQ socket
-        zmq_socket = self._zmq_context.socket(zmq.SUB)
-        zmq_socket.connect('inproc://out')                           #Connect to bridge output
-        zmq_socket.setsockopt(zmq.SUBSCRIBE, 'B' + self._mav.ident()) #Filter on encrypted message with mav ident
+        self._zmq_socket = self._zmq_context.socket(zmq.SUB)
+        self._zmq_socket.connect('inproc://out')                           #Connect to bridge output
+        self._zmq_socket.setsockopt(zmq.SUBSCRIBE, 'B' + self._mav.ident()) #Filter on encrypted message with mav ident
         #Regular socket
         r_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # TCP
         r_socket.bind(self._address)
-        r_socket.listen(1)
-        conn, addr = r_socket.accept()
-        _print('TCP_connection {0} : connected to {1}'.format(self._ident, addr))
-        #Function definition
-        @in_thread(True)
-        def mav_2_socket():
-            _print('TCP_connection : mav to socket {0} loop start'.format(self._ident))
-            while(self._run):
-                string = zmq_socket.recv()
-                out_data = string.split(' ',2)[2]
-                conn.send(out_data)
-        @in_thread(True)
-        def socket_2_mav():
-            _print('TCP_connection : socket to mav {0} loop start'.format(self._ident))
-            while(self._run):
-                in_data = conn.recv(4096)
-                self._mav.pymavlink_handle().write(in_data)
-        #Launch threaded functions
-        mav_2_socket()
-        socket_2_mav()
-        
-  
-        
+        while(self._run):
+            if(self._connection_activated == False):
+                if(self._connection_h != None):
+                    self._connection_h.close()
+                _print('TCP_connection {0} waiting '.format(self._ident))
+                r_socket.listen(1)
+                self._connection_h, self._connection_address = r_socket.accept()
+                self._connection_activated = True
+                _print('TCP_connection {0} : connected to {1}'.format(self._ident, self._connection_address))
+                #Launch threaded functions
+                self._mav_2_socket()
+                self._socket_2_mav()
+            sleep(1)
+    @in_thread(True)
+    def _mav_2_socket(self):
+        _print('TCP_connection : mav to socket {0} loop start'.format(self._ident))
+        while(self._connection_activated):
+            string = self._zmq_socket.recv()
+            out_data = string.split(' ',2)[2]
+            try:
+                self._connection_h.send(out_data)
+            except:
+                self._connection_activated = False
+    @in_thread(True)
+    def _socket_2_mav(self):
+        _print('TCP_connection : socket to mav {0} loop start'.format(self._ident))
+        while(self._connection_activated):
+            try:
+                in_data = self._connection_h.recv(4096)
+            except:
+                self._connection_activated = False
+            else:
+                py_h = self._mav.pymavlink_handle()
+                if(py_h != None):
+                    py_h.write(in_data)  
 class Plug(object):
     '''Main class to manage the plug '''
     def __init__(self, prefix = ''):
@@ -276,7 +292,7 @@ class Plug(object):
 if __name__ == "__main__":
     
     my_plug = Plug()
-    mav_con01 = my_plug.MAVLINK_in('COM8', baud=57600, dialect='pixhawk')
+    mav_con01 = my_plug.MAVLINK_in('COM8', baud=57600)
     my_plug.ZMQ_out(1717)
     my_plug.TCP_in_out(mav_con01,'127.0.0.1',22222)
     my_plug.FILE_out('mavlink_log.txt')
