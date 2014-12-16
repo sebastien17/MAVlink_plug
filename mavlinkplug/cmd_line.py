@@ -38,7 +38,7 @@ def mavlinkplug_cmd_line():
     my_plug = mavlinkplug.Plug()
     mav_con01 = my_plug.MAVLINK_in(arguments['<mavlink>'], **mavlink_connection_args)
     if(arguments['--tcp'] != None):
-        my_plug.TCP_in_out(mav_con01,'127.0.0.1',int(arguments['--tcp']))
+        my_plug.TCP_in_out(mav_con01,'',int(arguments['--tcp']))
     if(arguments['--file'] != None):
          my_plug.FILE_out(arguments['--file'])
     if(arguments['--zmq'] != None):
