@@ -8,6 +8,7 @@ import zmq
 import logging
 import threading
 import socket
+from struct import pack
 from pymavlink import mavutil
 from time import sleep, time
 from json import dumps, loads
@@ -193,8 +194,9 @@ class BIN_writer(ModBase):
         with open(self._file, 'wb', 500) as f:
             while(self._run):
                 string = socket_in.recv()
-                data = string.split(' ',2)[2]
-                print(data, file=f,end='')
+                _ident, _timestamp, _data = string.split(' ',2)
+                _timestamp= float(_timestamp)
+                print(pack('>Q', _timestamp*1.0e6) + _data, file=f,end='')
                 self._out_msg += 1
         _print('BIN_writer {0} loop stop'.format(self._ident))
     def info(self):

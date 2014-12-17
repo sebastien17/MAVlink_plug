@@ -36,18 +36,22 @@ def mavlinkplug_cmd_line():
     if (arguments['--dialect'] != None):
         mavlink_connection_args['dialect'] = arguments['--dialect']   
         print('Dialect : {0}'.format(arguments['--dialect']))
+    #Initialise plug
     my_plug = mavlinkplug.Plug()
-    mav_con01 = my_plug.MAVLINK_in(arguments['<mavlink>'], **mavlink_connection_args)
-    if(arguments['--tcp'] != None):
-        my_plug.TCP_in_out(mav_con01,'',int(arguments['--tcp']))
+    if(arguments['--verbose'] == True):
+        my_plug.verbose(True)
+    #Connection independant module    
     if(arguments['--file'] != None):
          my_plug.FILE_out(arguments['--file'])
     if(arguments['--bin'] != None):
          my_plug.BIN_out(arguments['--bin'])
     if(arguments['--zmq'] != None):
         my_plug.ZMQ_out(arguments['--zmq'])
-    if(arguments['--verbose'] == True):
-        my_plug.verbose(True)
+    #Active MAVLINK connection
+    mav_con01 = my_plug.MAVLINK_in(arguments['<mavlink>'], **mavlink_connection_args)
+    #Connection dependant module
+    if(arguments['--tcp'] != None):
+        my_plug.TCP_in_out(mav_con01,'',int(arguments['--tcp']))
     my_plug.server_forever()
 
 if __name__ == "__main__":
