@@ -12,6 +12,9 @@ from pymavlink import mavutil
 from time import sleep, time
 from json import dumps, loads
 
+ZMQ_MESSAGE_BINARY = 'B'
+ZMQ_MESSAGE_JSON   = 'C'
+
 #Threading decorator definition
 def in_thread(isDaemon = True):
     def base_in_thread(fn):
@@ -106,7 +109,7 @@ class MAVLINK_connection(ModBase):
                 else:
                     if msg is not None:
                         d_type = msg.get_type()
-                        e_string  = 'B{0} {1:.3f} {2}'.format(self._ident, msg._timestamp,msg.get_msgbuf())
+                        e_string  = ZMQ_MESSAGE_BINARY + '{0} {1:.3f} {2}'.format(self._ident, msg._timestamp,msg.get_msgbuf())
                         socket.send(e_string)
                         self._in_msg += 1
                         if (d_type != 'BAD DATA' and d_type != 'BAD_DATA'):      #BAD DATA message ignored
@@ -120,7 +123,7 @@ class MAVLINK_connection(ModBase):
                             except:
                                 pass
                             else:
-                                d_string = "C{0} {1:.3f} {2}".format(self._ident, msg._timestamp , json_data)
+                                d_string = ZMQ_MESSAGE_JSON + '{0} {1:.3f} {2}'.format(self._ident, msg._timestamp , json_data)
                                 self._out_msg += 1
                                 socket.send(d_string)
             _print('MAVLINK_connection {0} loop stop'.format(self._ident))
@@ -163,8 +166,8 @@ class FILE_writer(ModBase):
         self._out_msg = 0
     def _mod(self):
         socket_in = self._zmq_context.socket(zmq.SUB)
-        socket_in.connect('inproc://out')                           #Connect to bridge output
-        socket_in.setsockopt(zmq.SUBSCRIBE, 'C')                    #Take only uncrypted data
+        socket_in.connect('inproc://out')                               #Connect to bridge output
+        socket_in.setsockopt(zmq.SUBSCRIBE, ZMQ_MESSAGE_JSON)           #Take only json data
         _print('FILE_writer {0} loop start'.format(self._ident))
         with open(self._file, 'w', 500) as f:
             while(self._run):
@@ -175,6 +178,28 @@ class FILE_writer(ModBase):
     def info(self):
         return {'ident' :  self._ident, 'file': self._file, 'msg_stats': {'out_msg': self._out_msg}}
 
+class BIN_writer(ModBase):
+    def __init__(self, zmq_context, ident, file):
+        super(BIN_writer, self).__init__()
+        self._zmq_context = zmq_context
+        self._ident = ident
+        self._file = file
+        self._out_msg = 0
+    def _mod(self):
+        socket_in = self._zmq_context.socket(zmq.SUB)
+        socket_in.connect('inproc://out')                               #Connect to bridge output
+        socket_in.setsockopt(zmq.SUBSCRIBE, ZMQ_MESSAGE_BINARY)         #Take only binary data
+        _print('FILE_writer {0} loop start'.format(self._ident))
+        with open(self._file, 'wb', 500) as f:
+            while(self._run):
+                string = socket_in.recv()
+                data = string.split(' ',2)[2]
+                print(data, file=f,end='')
+                self._out_msg += 1
+        _print('BIN_writer {0} loop stop'.format(self._ident))
+    def info(self):
+        return {'ident' :  self._ident, 'file': self._file, 'msg_stats': {'out_msg': self._out_msg}}
+        
 class TCP_connection(ModBase):
     def __init__(self, zmq_context, ident, mav, address, port):
         super(TCP_connection, self).__init__()
@@ -260,6 +285,12 @@ class Plug(object):
     def FILE_out(self, file):
         ident = '{0:02d}'.format(len(self._output_list))
         h = FILE_writer(self._zmq_context, ident, file)
+        h.run()
+        self._output_list.append(h)
+        return h
+    def BIN_out(self, file):
+        ident = '{0:02d}'.format(len(self._output_list))
+        h = BIN_writer(self._zmq_context, ident, file)
         h.run()
         self._output_list.append(h)
         return h

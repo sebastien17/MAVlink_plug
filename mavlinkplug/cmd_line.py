@@ -7,20 +7,21 @@ def mavlinkplug_cmd_line():
     It can redirect MAVLINK message to:
         - TCP port (to connect Ground Station for example)
         - ZMQ port
-        - Log file
+        - Log file (JSON or binary format)
         
 
     Usage:
-      mavlinkplug <mavlink> [--baud=<baud_rate>] [--dialect=<dialect>] [--tcp=<tcp_port>] [--file=<file>] [--zmq=<zmq_port>] [--verbose]
+      mavlinkplug <mavlink> [--baud=<baud_rate>] [--dialect=<dialect>] [--tcp=<tcp_port>] [--file=<file>] [--bin=<file>] [--zmq=<zmq_port>] [--verbose]
       
     Options:
       --baud=<baud_rate>    Define baud rate for a MAVLINK serial connection
       --dialect=<dialect>   Define dialect for a MAVLINK connection
       --tcp=<tcp_port>      Active and define the tcp output on <tcp_port>
-      --file=<file>         Active and define the file output in <file>
+      --file=<file>         Active and define the file output in <file> (data in JSON format)
+      --bin=<file>          Active and define the file output in <file>  (binary)
       --zmq=<zmq_port>      Active and define the zmq output on <tcp_port>
       --verbose             Show modules information
-      -h --help             Show this screen.
+      --help                Show this screen.
     '''
     
     import docopt
@@ -41,8 +42,13 @@ def mavlinkplug_cmd_line():
         my_plug.TCP_in_out(mav_con01,'',int(arguments['--tcp']))
     if(arguments['--file'] != None):
          my_plug.FILE_out(arguments['--file'])
+    if(arguments['--bin'] != None):
+         my_plug.BIN_out(arguments['--bin'])
     if(arguments['--zmq'] != None):
         my_plug.ZMQ_out(arguments['--zmq'])
     if(arguments['--verbose'] == True):
         my_plug.verbose(True)
     my_plug.server_forever()
+
+if __name__ == "__main__":
+    mavlinkplug_cmd_line()
