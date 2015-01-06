@@ -1,14 +1,26 @@
-============
+===========
 mavlinkplug
+===========
+
+mavlinkplug is a python library for relaying, logging and processing MAVLink message.
+
+Dependencies
 ============
 
-mavlinkplug is a python script that can be used to publish MAVlink message on a JSON format with the ZMQ library.
+ * pymavlink   : to connect to the MAVLink endpoint.
+ * pyserial    : for pymavlink dependencies
+ * pyzmq       : for internal messaging and external zmq publishment.
+ * docopt      : for command-line parsing.
 
-It uses the pymavlink library to connect to the MAVLink endpoint.
+    
+Features
+========
+TODO
 
-The MAVLink plug will define a ZQM publisher to send each MAVlink message,  as they arrive, in a JSON format (dictionary) preceded by his MAVlink message type.
+Install
+=======
 
-Some commands can be sent to the mavlinkplug using a ZQM pub-sub channel.
-
-
-
+ * Clone the Github repository
+ * Install the library
+  .. code-block:: bash
+  python setup.py install
