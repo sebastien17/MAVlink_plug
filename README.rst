@@ -5,7 +5,7 @@ mavlinkplug
 mavlinkplug is a python library for relaying, logging and processing MAVLink message.
 
 Dependencies
-============
+------------
 
  * pymavlink   : to connect to the MAVLink endpoint.
  * pyserial    : for pymavlink dependencies
@@ -14,11 +14,11 @@ Dependencies
 
     
 Features
-========
+--------
 TODO
 
 Install
-=======
+-------
 
  * Clone the Github repository
  * Install the library
