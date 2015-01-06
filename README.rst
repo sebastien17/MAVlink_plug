@@ -11,7 +11,7 @@ Features
 * Highly Modular
 * Command-line tools :
 
-  mavlinkplug
+mavlinkplug
  This tools has to be plugged to a MAVLINK device.
  It can redirect MAVLINK message to:
      - TCP port (to connect Ground Station for example)
