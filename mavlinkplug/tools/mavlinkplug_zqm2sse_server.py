@@ -15,24 +15,24 @@ app = Flask(__name__, static_folder='statics', static_url_path='/statics')
 
 #Defining incoming zmq communication
 context = zmq.Context()
-socket = context.socket(zmq.SUB)                  #0mq publisher
-socket.connect ("tcp://127.0.0.1:%s" % ZQM_PORT_IN)
-socket.setsockopt(zmq.SUBSCRIBE, '')
+
 
 def event_stream():
+    socket = context.socket(zmq.SUB)                  #0mq publisher
+    socket.connect ("tcp://127.0.0.1:%s" % ZQM_PORT_IN)
+    socket.setsockopt(zmq.SUBSCRIBE, '')
     while True:
         data = socket.recv()
         yield ('data: {0}\n\n'.format(data))
 
 @app.route('/stream')
 def sse_request():
-    return Response(
-            event_stream(),
-            mimetype='text/event-stream')
+    return Response(event_stream(), mimetype='text/event-stream')
 
 @app.route('/')
 def page():
-    return render_template('sse.html')
+    return render_template('czml.html')
+    #return render_template('sse.html')
 
 if __name__ == '__main__':
     http_server = WSGIServer(('127.0.0.1', 1717), app)

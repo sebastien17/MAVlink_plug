@@ -21,7 +21,7 @@ def mavlinkplug_cmd_line():
       --bin=<file>          Active and define the file output in <file>  (binary)
       --zmq=<zmq_port>      Active and define the zmq output on <tcp_port>
       --verbose             Show modules information
-      --help                Show this screen.
+      --help                Show this screen
     '''
     
     import docopt
