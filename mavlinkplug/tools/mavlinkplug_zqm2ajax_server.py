@@ -20,7 +20,6 @@ socket_out = context.socket(zmq.PUB)
 socket_out.connect("tcp://127.0.0.1:%s" % ZQM_PORT_OUT)
 
 class TestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
-    """The test example handler."""
     
     def do_POST(self):
         """Handle a post request by returning the square of the number."""

@@ -1,6 +1,8 @@
 //Globals
 //Cesium js
 var cjs = {};
+//Stream
+var stream = {};
 
 //Host information
 var _hostname = window.location.hostname;
@@ -10,16 +12,12 @@ var _port = window.location.port;
 var sched_data = {
     init:[
         init_event,
-        init_cesiumjs
+        init_cesiumjs,
+        stream_init
     ],
     refresh:[
     ]
 }
-
-
-
-
-
 
 $( document ).ready(function() {
     scheduler()
@@ -60,9 +58,9 @@ function init_cesiumjs(){
     
     //Init cesiumjs viewer
     cjs.viewer = new Cesium.Viewer('cesiumContainer',{  
-        timeline : false,
+        timeline : true,
         homeButton: false, 
-        animation: false, 
+        animation: true, 
         navigationHelpButton : false,
         baseLayerPicker : false,
         imageryProvider : new Cesium.BingMapsImageryProvider({
@@ -79,7 +77,7 @@ function init_cesiumjs(){
     cjs.globe.enableLighting = true;
     
     // Ask browser for location, and fly there.
-    navigator.geolocation.getCurrentPosition(cjs.fly);
+    //navigator.geolocation.getCurrentPosition(cjs.fly);
     
 }
 
@@ -93,3 +91,23 @@ function init_cesiumjs(){
 function init_event(){
 
 };
+
+/****************************************************************************
+*
+* Server Side Event Logics
+*
+*****************************************************************************/  
+function stream_init(){
+    stream.msg_count = 0;
+    stream.sse = new EventSource('/stream');
+    stream.sse.addEventListener('czml', czmlHandler, false);
+    cjs.czmlDataSource = new Cesium.CzmlDataSource();
+
+}
+
+function czmlHandler(event) {
+    stream.msg_count += 1;
+    cjs.czmlDataSource.process(jQuery.parseJSON(event.data), 'SSE');
+    cjs.viewer.dataSources.add(cjs.czmlDataSource);
+
+}
