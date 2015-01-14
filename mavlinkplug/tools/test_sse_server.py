@@ -14,7 +14,7 @@ def event_stream():
     turn = 0
     running = True
     data_1 = '''{"id":"document","version":"1.0"}'''
-    data_2 = '''{"id":"Vehicle","description": "Description test", "billboard":{"eyeOffset":{"cartesian":[0.0,0.0,0.0]},"horizontalOrigin":"CENTER","image":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAEISURBVEhLvVXBDYQwDOuojHKj8LhBbpTbpBCEkZsmIVTXq1RVQGrHiWlLmTTqPiZBlyLgy/KSZQ5JSHDQ/mCYCsC8106kDU0AdwRnvYZArWRcAl0dcYJq1hWCb3hBrumbDAVMwAC82WoRvgMnVMDBnB0nYZFTbE6BBvdUGqVqCbjBIk3PyFFR/NU7EKzru+qZsau3ryPwwCRLKYOzutZuCL6fUmWeJGzNzL/RxAMrUmASSCkkAayk2IxPlwhAAYGpsiHQjbLccfdOY5gKkCXAMi7SscAwbQpAnKyctWyUZ6z8ja3OGMepwD8asz+9FnSvbhU8uVOHFIwQsI3/p0CfhuqCSQuxLqsN6mu8SS+N42MAAAAASUVORK5CYII=","pixelOffset":{"cartesian2":[0.0,0.0]},"scale":0.8333333333333334,"show":[{"boolean":true}],"verticalOrigin":"BOTTOM"},"position":{"cartographicDegrees":[0,0,100]}}'''
+    data_2 = '''{"id":"Vehicle","description": "Description test", "model":{"gltf":"statics/img/arrow.gltf","minimumPixelSize":50,"scale":1.0,"show":true},"position":{"cartographicDegrees":[0,0,100]}}'''
     x = 0
     y = 0
     z = 100
