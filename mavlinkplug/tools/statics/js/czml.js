@@ -102,12 +102,13 @@ function stream_init(){
     stream.sse = new EventSource('/stream');
     stream.sse.addEventListener('czml', czmlHandler, false);
     cjs.czmlDataSource = new Cesium.CzmlDataSource();
+    cjs.viewer.dataSources.add(cjs.czmlDataSource);
 
 }
 
 function czmlHandler(event) {
     stream.msg_count += 1;
     cjs.czmlDataSource.process(jQuery.parseJSON(event.data), 'SSE');
-    cjs.viewer.dataSources.add(cjs.czmlDataSource);
+    
 
 }
