@@ -15,6 +15,9 @@ from json import dumps, loads
 
 ZMQ_MESSAGE_BINARY = 'B'
 ZMQ_MESSAGE_JSON   = 'C'
+ZMQ_BRIDGE_IN = 'inproc://in'
+ZMQ_BRIDGE_OUT = 'inproc://out'
+
 
 #Threading decorator definition
 def in_thread(isDaemon = True):
@@ -57,25 +60,28 @@ class ModBase(object):
         return {}
     
 class Bridge(ModBase):
-        def __init__(self, zmq_context):
+        def __init__(self, zmq_context, zmq_sock_in, zmq_sock_out):
             super(Bridge, self).__init__()
             self._zmq_context = zmq_context
+            self._zmq_sock_in = zmq_sock_in
+            self._zmq_sock_out = zmq_sock_out
         def _mod(self):
             '''Create the ZMQ bridge between in & out'''
             socket_in =  self._zmq_context.socket(zmq.SUB)
-            socket_in.bind('inproc://in')                           #Bind because most stable
+            socket_in.bind(self._zmq_sock_in)                           #Bind because most stable
             socket_in.setsockopt(zmq.SUBSCRIBE, '')
             socket_out =  self._zmq_context.socket(zmq.PUB)
-            socket_out.bind('inproc://out')                         #Bind because most stable
+            socket_out.bind(self._zmq_sock_out)                         #Bind because most stable
             while (self._run):
                 string = socket_in.recv()                           #Yield to event loop
                 socket_out.send(string)    
             socket.close()
             
 class MAVLINK_connection(ModBase):
-        def __init__(self, zmq_context, ident, *argv, **kwargs):
+        def __init__(self, zmq_context, zmq_sock_in, ident, *argv, **kwargs):
             super(MAVLINK_connection, self).__init__()
             self._zmq_context = zmq_context
+            self._zmq_sock_in = zmq_sock_in
             self.isDaemon = False
             self._argv = argv
             self._kwargs = kwargs
@@ -98,7 +104,7 @@ class MAVLINK_connection(ModBase):
             _print('MAVLINK connection {0} acquired'.format(self._ident))
         def _mod(self):
             socket =  self._zmq_context.socket(zmq.PUB)
-            socket.connect('inproc://in')                       #New socket which publish to the bridge
+            socket.connect(self._zmq_sock_in)                       #New socket which publish to the bridge
             self.try_connection()
             _print('MAVLINK_connection {0} loop start'.format(self._ident))
             while(self._run):
@@ -129,21 +135,57 @@ class MAVLINK_connection(ModBase):
                                 socket.send(d_string)
             _print('MAVLINK_connection {0} loop stop'.format(self._ident))
             socket.close()
-        def pymavlink_handle(self):
-            return self._mavh
+        def mavlink_command(self, cmd):
+            if(self._mavh == None):
+                return False
+            else :
+                try:
+                    logging_string = '{0} : Not yet implemented'.format(cmd)
+                    if (cmd == 'RESET'):
+                        self._mavh.reboot_autopilot()
+                        logging_string = 'Launch reboot_autopilot command'
+                    elif (cmd == 'LOITER_MODE'):
+                        self._mavh.set_mode_loiter()
+                        logging_string = 'Launch set_mode_loiter command'
+                    elif (cmd == 'RTL_MODE'):
+                        self._mavh.set_mode_rtl()
+                        logging_string = 'Launch set_mode_rtl command'
+                    elif (cmd == 'MISSION_MODE'):
+                        self._mavh.set_mode_auto()
+                        logging_string = 'Launch set_mode_auto command'
+                    elif(cmd == 'WP_LIST_REQUEST'):
+                        self._mavh.waypoint_request_list_send()
+                        logging_string = 'Launch waypoint_request_list_send command'
+                    elif(cmd == 'WP_REQUEST'):
+                        self._mavh.waypoint_request_send(param['seq'])
+                        logging_string = 'Launch waypoint_request_send({0}) command'.format(param['seq'])
+                    _print('Ident: {0}'.format(self._ident) + logging_string)
+                    return True
+                except:
+                    logging.debug('Mavlink Command exception occured')
+                    return False
+        def write(self, data):
+            if(self._mavh != None):
+                try:
+                    self._mavh.write(data)
+                    return True
+                except: 
+                    pass
+            return False
         def info(self):
             return {'ident' :  self._ident, 'argv': self._argv, 'kwargs': self._kwargs, 'msg_stats': {'in_msg': self._in_msg, 'ok_msg': self._ok_msg, 'out_msg': self._out_msg}}
 
 class ZMQ_publisher(ModBase):
-    def __init__(self, zmq_context, ident,  port):
+    def __init__(self, zmq_context, zmq_sock_in, ident, port):
         super(ZMQ_publisher, self).__init__()
         self._zmq_context = zmq_context
+        self._zmq_sock_in = zmq_sock_in
         self._ident = ident
         self._port = port
         self._out_msg = 0
     def _mod(self):
         socket_in = self._zmq_context.socket(zmq.SUB)
-        socket_in.connect('inproc://out')                           #Connect to bridge output
+        socket_in.connect(self._zmq_sock_in)                           #Connect to bridge output
         socket_in.setsockopt(zmq.SUBSCRIBE, '')                     #No filter
         socket_out = self._zmq_context.socket(zmq.PUB)              #Zmq publisher
         socket_out.bind("tcp://*:%s" % self._port)
@@ -159,15 +201,16 @@ class ZMQ_publisher(ModBase):
             return {'ident' :  self._ident, 'port': self._port, 'msg_stats': {'out_msg': self._out_msg}}
            
 class FILE_writer(ModBase):
-    def __init__(self, zmq_context, ident, file):
+    def __init__(self, zmq_context, zmq_sock_in, ident, file):
         super(FILE_writer, self).__init__()
         self._zmq_context = zmq_context
+        self._zmq_sock_in = zmq_sock_in
         self._ident = ident
         self._file = file
         self._out_msg = 0
     def _mod(self):
         socket_in = self._zmq_context.socket(zmq.SUB)
-        socket_in.connect('inproc://out')                               #Connect to bridge output
+        socket_in.connect(self._zmq_sock_in)                               #Connect to bridge output
         socket_in.setsockopt(zmq.SUBSCRIBE, ZMQ_MESSAGE_JSON)           #Take only json data
         _print('FILE_writer {0} loop start'.format(self._ident))
         with open(self._file, 'w', 500) as f:
@@ -180,15 +223,16 @@ class FILE_writer(ModBase):
         return {'ident' :  self._ident, 'file': self._file, 'msg_stats': {'out_msg': self._out_msg}}
 
 class BIN_writer(ModBase):
-    def __init__(self, zmq_context, ident, file):
+    def __init__(self, zmq_context, zmq_sock_in, ident, file):
         super(BIN_writer, self).__init__()
         self._zmq_context = zmq_context
+        self._zmq_sock_in = zmq_sock_in
         self._ident = ident
         self._file = file
         self._out_msg = 0
     def _mod(self):
         socket_in = self._zmq_context.socket(zmq.SUB)
-        socket_in.connect('inproc://out')                               #Connect to bridge output
+        socket_in.connect(self._zmq_sock_in)                               #Connect to bridge output
         socket_in.setsockopt(zmq.SUBSCRIBE, ZMQ_MESSAGE_BINARY)         #Take only binary data
         _print('FILE_writer {0} loop start'.format(self._ident))
         with open(self._file, 'wb', 500) as f:
@@ -203,12 +247,13 @@ class BIN_writer(ModBase):
         return {'ident' :  self._ident, 'file': self._file, 'msg_stats': {'out_msg': self._out_msg}}
         
 class TCP_connection(ModBase):
-    def __init__(self, zmq_context, ident, mav, address, port):
+    def __init__(self, zmq_context, zmq_sock_in, ident, mav_connection, address, port):
         super(TCP_connection, self).__init__()
         self._zmq_context = zmq_context
+        self._zmq_sock_in = zmq_sock_in
         self._zmq_socket = None
         self._ident = ident
-        self._mav = mav
+        self._mav = mav_connection
         self._address = (address, port)
         self._out_msg = 0
         self._in_msg = 0
@@ -218,7 +263,7 @@ class TCP_connection(ModBase):
     def _mod(self):
         #ZMQ socket
         self._zmq_socket = self._zmq_context.socket(zmq.SUB)
-        self._zmq_socket.connect('inproc://out')                           #Connect to bridge output
+        self._zmq_socket.connect(self._zmq_sock_in)                           #Connect to bridge output
         self._zmq_socket.setsockopt(zmq.SUBSCRIBE, 'B' + self._mav.ident()) #Filter on encrypted message with mav ident
         #Regular socket
         r_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # TCP
@@ -257,55 +302,55 @@ class TCP_connection(ModBase):
             except:
                 self._connection_activated = False
             else:
-                py_h = self._mav.pymavlink_handle()
-                if(py_h != None):
-                    py_h.write(in_data)
+                self._mav.write(in_data)
     def info(self):
         return {'ident' :  self._ident, 'address': self._address, 'msg_stats': {'out_msg': self._out_msg,'in_msg': self._in_msg, 'connection activated': self._connection_activated}}
+
 class Plug(object):
     '''Main class to manage the plug '''
     def __init__(self):
         print('Initialising Plug')
         self._zmq_context = zmq.Context()
-        self._bridge = Bridge(self._zmq_context)
-        self._bridge.run()
         self._input_list = []                               #Thread list for MAVLINK connection
         self._output_list = []                              #Thread list for other than MAVLINK connection
         self._verbose = False
+        self._zmq_bridge_in = ZMQ_BRIDGE_IN
+        self._zmq_bridge_out = ZMQ_BRIDGE_OUT
+        self._bridge = Bridge(self._zmq_context, self._zmq_bridge_in, self._zmq_bridge_out)
+        self._bridge.run()
     def MAVLINK_in(self, *argv, **kwargs):
         ident = '{0:02d}'.format(len(self._input_list))
-        h = MAVLINK_connection(self._zmq_context, ident, *argv, **kwargs)
+        h = MAVLINK_connection(self._zmq_context, self._zmq_bridge_in, ident, *argv, **kwargs)
         h.run()
         self._input_list.append(h)
         return h
     def ZMQ_out(self, port):
         ident = '{0:02d}'.format(len(self._output_list))
-        h = ZMQ_publisher(self._zmq_context, ident, port)
+        h = ZMQ_publisher(self._zmq_context, self._zmq_bridge_out, ident, port)
         h.run()
         self._output_list.append(h)
         return h
     def FILE_out(self, file):
         ident = '{0:02d}'.format(len(self._output_list))
-        h = FILE_writer(self._zmq_context, ident, file)
+        h = FILE_writer(self._zmq_context, self._zmq_bridge_out, ident, file)
         h.run()
         self._output_list.append(h)
         return h
     def BIN_out(self, file):
         ident = '{0:02d}'.format(len(self._output_list))
-        h = BIN_writer(self._zmq_context, ident, file)
+        h = BIN_writer(self._zmq_context, self._zmq_bridge_out, ident, file)
         h.run()
         self._output_list.append(h)
         return h
     def TCP_in_out(self, mavlink_connection, address, port):
         ident = '{0:02d}'.format(len(self._output_list))
-        h = TCP_connection(self._zmq_context, ident, mavlink_connection, address, port)
+        h = TCP_connection(self._zmq_context, self._zmq_bridge_out, ident, mavlink_connection, address, port)
         h.run()
         self._output_list.append(h)
         return h
     def verbose(self, switch):
         if(isinstance(switch, bool)):
             self._verbose = switch
-    
     def server_forever(self):
         while(True):
             try:
