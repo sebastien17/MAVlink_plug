@@ -22,6 +22,19 @@ mavlinkplug
  Usage:
    mavlinkplug <mavlink> [--baud=<baud_rate>] [--dialect=<dialect>] [--tcp=<tcp_port>] [--file=<file>] [--bin=<file>] [--zmq=<zmq_port>] [--verbose]
    
+Example of Use
+--------------
+import mavlinkplug
+
+my_plug = mavlinkplug.Plug()
+my_plug.verbose(True)
+my_plug.FILE_out(arguments['--file'])
+my_plug.BIN_out(arguments['--bin'])
+my_plug.ZMQ_out(arguments['--zmq'])
+mav_con01 = my_plug.MAVLINK_in('com4', baud=115200, dialect=pixhawk)
+my_plug.TCP_in_out(mav_con01,'',17501))
+my_plug.server_forever()
+
 Dependencies
 ------------
 
