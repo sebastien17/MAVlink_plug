@@ -31,8 +31,7 @@ def sse_request():
 
 @app.route('/')
 def page():
-    return render_template('czml.html')
-    #return render_template('sse.html')
+    return render_template('sse.html')
 
 if __name__ == '__main__':
     http_server = WSGIServer(('127.0.0.1', 1717), app)

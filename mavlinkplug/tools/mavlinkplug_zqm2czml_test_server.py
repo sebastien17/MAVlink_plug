@@ -14,8 +14,8 @@ def event_stream():
     turn = 0
     running = True
     data_1 = '''{"id":"document","version":"1.0"}'''
-    data_2 = '''{"id":"Vehicle","description": "Description test", "model":{"gltf":"statics/img/arrow.gltf","minimumPixelSize":50,"scale":1.0,"show":true},"position":{"cartographicDegrees":[0,0,100]}}'''
-    x = 0
+    data_2 = '''{"id":"Vehicle","description": "Description test", "model":{"gltf":"statics/img/arrow.gltf","minimumPixelSize":50,"scale":1.0,"show":true}}'''
+    x = 45
     y = 0
     z = 100
     while(running):
@@ -24,8 +24,8 @@ def event_stream():
         elif(turn == 1):
             data = data_2
         else:
-            (x,y,z) = (x+0.01, y, z)
-            data = '{"id":"Vehicle","position":{ "cartographicDegrees":["'+ datetime.now().isoformat() +'",' + str(x) + ','+ str(y) + ',' + str(z) + ']}}'
+            (x,y,z) = (x+0.1, y, z)
+            data = '{"id":"Vehicle","position":{ "cartographicDegrees":["'+ datetime.now().isoformat() +'",' + str(x) + ','+ str(y) + ',' + str(z) + ']},"_information":{"cartographicDegrees":["'+ datetime.now().isoformat() +'",' + str(x) + ','+ str(y) + ',' + str(z) + ']}}'
         turn += 1
         sleep(0.1)
         yield ('event:czml\ndata: {0}\n\n'.format(data))

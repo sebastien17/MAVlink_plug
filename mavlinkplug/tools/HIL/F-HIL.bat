@@ -1,0 +1,1 @@
+"D:\Programs\FlightGear\bin\Win64\fgfs" --fg-root="D:\Programs\FlightGear\data" --geometry=1200x900  --native-fdm=socket,out,50,127.0.0.1,49005,udp --generic=socket,out,50,127.0.0.1,49000,udp,my_mavlink  --roll=0  --pitch=0  --wind=0@0  --turbulence=0.0  --prop:/sim/frame-rate-throttle-hz=30  --timeofday=noon
