@@ -335,6 +335,10 @@ class Plug(object):
         self._zmq_bridge_out = ZMQ_BRIDGE_OUT
         self._bridge = Bridge(self._zmq_context, self._zmq_bridge_in, self._zmq_bridge_out)
         self._bridge.run()
+    @classmethod
+    def plugin_register(cls, name, _method):
+        setattr(cls, name, _method)
+    
     def MAVLINK_in(self, *argv, **kwargs):
         ident = '{0:02d}'.format(len(self._input_list))
         h = MAVLINK_connection(self._zmq_context, self._zmq_bridge_in, ident, *argv, **kwargs)

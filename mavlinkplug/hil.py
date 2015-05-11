@@ -20,7 +20,7 @@
 import mavlinkplug
 
 #Add hil method to Plug class (defined by __function_to_add)
-setattr(mavlinkplug.Plug, 'hil', __function_to_add)
+mavlinkplug.Plug.plugin_register('hil', __function_to_add)
 
 def __function_to_add(self, *argv, **kwargs):
     ident = '{0:02d}'.format(len(self._input_list))
