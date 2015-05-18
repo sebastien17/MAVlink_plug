@@ -32,9 +32,9 @@ Example of Use
  
  my_plug = mavlinkplug.Plug()
  my_plug.verbose(True)
- my_plug.FILE_out(arguments['--file'])
- my_plug.BIN_out(arguments['--bin'])
- my_plug.ZMQ_out(arguments['--zmq'])
+ my_plug.FILE_out('output.txt')
+ my_plug.BIN_out('output.bin')
+ my_plug.ZMQ_out('tcp://localhost:33333')
  mav_con01 = my_plug.MAVLINK_in('com4', baud=115200, dialect=pixhawk)
  my_plug.TCP_in_out(mav_con01,'',17501))
  my_plug.server_forever()
