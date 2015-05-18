@@ -107,6 +107,8 @@ class MAVLINK_connection(ModBase):
             self._in_msg = 0
             self._ok_msg = 0
             self._out_msg = 0
+        def mav_handle(self):
+            return self._mavh
         def try_connection(self):
             self._mavh = None
             _print('MAVLINK connection {0} initialising'.format(self._ident))
@@ -152,7 +154,7 @@ class MAVLINK_connection(ModBase):
                                 socket.send(d_string)
             _print('MAVLINK_connection {0} loop stop'.format(self._ident))
             socket.close()
-        def mavlink_command(self, cmd):
+        def mavlink_command(self, cmd,*argv, **kwargs):
             if(self._mavh == None):
                 return False
             else :
@@ -176,6 +178,15 @@ class MAVLINK_connection(ModBase):
                     elif(cmd == 'WP_REQUEST'):
                         self._mavh.waypoint_request_send(param['seq'])
                         logging_string = 'Launch waypoint_request_send({0}) command'.format(param['seq'])
+                    elif(cmd == 'SET_HIL_&_ARM'):
+                        #TODO : Manage dialect version pixhawk for mavlink
+                        #Try mavutil.mavlink instead of mavlink 
+                        self._mavh.command_long_send(self.master.target_system,
+                                self.master.target_component,
+                                mavlink.MAV_CMD_DO_SET_MODE, 4,
+                                mavlink.MAV_MODE_FLAG_SAFETY_ARMED |
+                                mavlink.MAV_MODE_FLAG_HIL_ENABLED,
+                                0, 0, 0, 0, 0, 0)
                     _print('Ident: {0}'.format(self._ident) + logging_string)
                     return True
                 except:
