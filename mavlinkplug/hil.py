@@ -170,8 +170,9 @@ class hil(mavlinkplug.ModBase):
     def hardware_initialize(self):
         while(self._mav.mav_handle() == None):
             time.sleep(1)
-        self._mav.mavlink_command('SET_HIL_&_ARM')
+        self._mav.mavlink_command('SET_HIL_ARM')
         #TODO : add check
+        time.sleep(2)
         self._mav.mavlink_command('RESET')
         #TODO : add check
         self._hardware_ready = True

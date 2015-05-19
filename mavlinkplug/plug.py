@@ -178,19 +178,19 @@ class MAVLINK_connection(ModBase):
                     elif(cmd == 'WP_REQUEST'):
                         self._mavh.waypoint_request_send(param['seq'])
                         logging_string = 'Launch waypoint_request_send({0}) command'.format(param['seq'])
-                    elif(cmd == 'SET_HIL_&_ARM'):
-                        #TODO : Manage dialect version pixhawk for mavlink
-                        #Try mavutil.mavlink instead of mavlink 
-                        self._mavh.command_long_send(self.master.target_system,
-                                self.master.target_component,
-                                mavlink.MAV_CMD_DO_SET_MODE, 4,
-                                mavlink.MAV_MODE_FLAG_SAFETY_ARMED |
-                                mavlink.MAV_MODE_FLAG_HIL_ENABLED,
+                    elif(cmd == 'SET_HIL_ARM'):
+                        self._mavh.mav.command_long_send(self._mavh.target_system,
+                                self._mavh.target_component,
+                                mavutil.mavlink.MAV_CMD_DO_SET_MODE, 4,
+                                mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED |
+                                mavutil.mavlink.MAV_MODE_FLAG_HIL_ENABLED,
                                 0, 0, 0, 0, 0, 0)
-                    _print('Ident: {0}'.format(self._ident) + logging_string)
+                        logging_string = 'Launch set hil & arm command'
+                    _print('Ident: {0} '.format(self._ident) + logging_string)
                     return True
-                except:
-                    logging.debug('Mavlink Command exception occured')
+                except Exception as e:
+                    print(e)
+                    logging.debug('Mavlink Command exception occured : {0}'.format(str(e)))
                     return False
         def write(self, data):
             if(self._mavh != None):
