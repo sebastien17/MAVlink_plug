@@ -35,6 +35,7 @@ ZMQ_MESSAGE_JSON   = 'C'
 ZMQ_BRIDGE_IN = 'inproc://in'
 ZMQ_BRIDGE_OUT = 'inproc://out'
 
+logging.basicConfig(filename='example.log',level=logging.DEBUG)
 
 #Threading decorator definition
 def in_thread(isDaemon = True):
@@ -330,6 +331,27 @@ class TCP_connection(ModBase):
             except:
                 self._connection_activated = False
             else:
+                #Logging to add
+                
+                try:
+                    msg = self._mav.mav.parse_char(in_data)                       #Blocking TBC
+                except Exception as e:
+                    print(e)
+                else:
+                    if msg is not None:
+                        d_type = msg.get_type()
+                        if (d_type != 'BAD DATA' and d_type != 'BAD_DATA'):      #BAD DATA message ignored
+                            data = {}
+                            data[d_type] = {}
+                            for i in msg.get_fieldnames():
+                                data[d_type][i]=msg.__dict__[i]
+                            try:
+                                json_data = dumps(data)
+                            except:
+                                pass
+                            else:
+                                d_string = ZMQ_MESSAGE_JSON + '{0} {1:.3f} {2}'.format(self._ident, msg._timestamp , json_data)
+                                logging.debug(d_string)
                 self._mav.write(in_data)
     def info(self):
         return {'ident' :  self._ident, 'address': self._address, 'msg_stats': {'out_msg': self._out_msg,'in_msg': self._in_msg, 'connection activated': self._connection_activated}}
