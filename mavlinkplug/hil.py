@@ -19,7 +19,10 @@
 
 import mavlinkplug, pyfdm
 from pymavlink.dialects.v10 import pixhawk as mavlink
-import zmq, time
+import zmq, time, os
+
+#Define default path for package included data
+DATA_PATH = os.path.dirname(__file__)+os.sep+'data'+os.sep
 
 #Method added to Plug class
 def __function_to_add(self, *argv, **kwargs):
@@ -48,14 +51,14 @@ class hil(mavlinkplug.ModBase):
         self._out_msg = 0
         self._in_msg = 0
         #ZMQ sockets initialization
-        # self._from_plug_zmq_socket = self._zmq_context.socket(zmq.SUB)
-        # self._from_plug_zmq_socket.connect(self._from_plug_zmq_sock)                                                #Connect to bridge output
-        # self._from_plug_zmq_socket.setsockopt(zmq.SUBSCRIBE, mavlinkplug.ZMQ_MESSAGE_JSON + self._mav.ident())      #Filter on encrypted message with mav ident
-        # self._to_FL_zmq_socket = self._zmq_context.socket(zmq.PUB)
-        # self._to_FL_zmq_socket.bind(self._to_FL_zmq_sock_port)                                                       
-        # self._from_FL_zmq_socket = self._zmq_context.socket(zmq.SUB)
-        # self._from_FL_zmq_socket.bind(self._from_FL_zmq_sock_port)                                          
-        # self._from_FL_zmq_socket.setsockopt(zmq.SUBSCRIBE, '')                                                  #No filters
+        self._from_plug_zmq_socket = self._zmq_context.socket(zmq.SUB)
+        self._from_plug_zmq_socket.connect(self._from_plug_zmq_sock)                                                #Connect to bridge output
+        self._from_plug_zmq_socket.setsockopt(zmq.SUBSCRIBE, mavlinkplug.ZMQ_MESSAGE_JSON + self._mav.ident())      #Filter on encrypted message with mav ident
+        self._to_FL_zmq_socket = self._zmq_context.socket(zmq.PUB)
+        self._to_FL_zmq_socket.bind(self._to_FL_zmq_sock_port)                                                       
+        self._from_FL_zmq_socket = self._zmq_context.socket(zmq.SUB)
+        self._from_FL_zmq_socket.bind(self._from_FL_zmq_sock_port)                                          
+        self._from_FL_zmq_socket.setsockopt(zmq.SUBSCRIBE, '')                                                  #No filters
         self._FL_instance = FL_instance
         self._hardware_ready = False
         self._FL_ready = False
@@ -97,76 +100,6 @@ class hil(mavlinkplug.ModBase):
             time.sleep(0.1)
             if time.time()  - t_start > 5: raise IOError('Failed to '\
                     + 'transition to HIL mode and arm, check port and firmware')
-
-    # def wait_for_no_msg(self, msg, period, timeout, callback=None):
-        # done = False
-        # t_start = time.time()
-        # t_last = time.time()
-        # while not done:
-            # if callback is not None: callback()
-            # while self.master.port.inWaiting() > 0:
-                # m = self.master.recv_msg()
-                # if m is None: continue
-                # if m.get_type() == msg:
-                    # t_last = time.time()
-            # if time.time() - t_last > period:
-                # done = True
-            # elif time.time() - t_start > timeout:
-                # done = False
-                # break
-            # time.sleep(0.001)
-
-        # return done
- 
-    # def wait_for_msg(self, msg, timeout, callback=None):
-        # done = False
-        # t_start = time.time()
-        # while not done:
-            # if callback is not None: callback()
-            # while self.master.port.inWaiting() > 0:
-                # m = self.master.recv_msg()
-                # if m is None: continue
-                # if m.get_type() == msg:
-                    # done = True
-                    # break
-            # if time.time() - t_start > timeout:
-                # done = False
-                # break
-            # time.sleep(0.1)
-
-        # return done
-
-    # def reboot_autopilot(self):
-
-        # reboot_successful = False
-        # while not reboot_successful:
-
-            # # Request reboot until no heartbeat received
-                # # The callback option cannot be used for this, because it
-                # # runs at the same speed as the message receive which is
-                # # unecessary.
-            # shutdown = False
-            # while not shutdown:
-                # self.set_hil_and_arm()
-                # #self.set_mode_flag(mavlink.MAV_MODE_FLAG_HIL_ENABLED, True)
-                # print 'Sending reboot to autopilot'
-                # self.master.reboot_autopilot()
-                # # wait for heartbeat timeout, continue looping if not received
-                # shutdown = self.wait_for_no_msg(msg='HEARTBEAT', period=2, timeout=10)
-            # print 'Autopilot heartbeat lost (rebooting)'
-            # # Try to read heartbeat three times before restarting shutdown
-            # for i in range(3):
-                # print 'Attempt %d to read autopilot heartbeat.' % (i+1)
-                # # Reset serial comm
-                # self.master.reset()
-                # reboot_successful = self.wait_for_msg('HEARTBEAT', timeout=100)
-                # if reboot_successful:
-                    # #delay sending data to avoid boot problem on px4
-                    # time.sleep(1)
-                    # self.set_hil_and_arm()
-                    # #self.set_mode_flag(mavlink.MAV_MODE_FLAG_HIL_ENABLED, True)
-                    # break
-    
     def hardware_initialize(self):
         while(self._mav.mav_handle() == None):
             time.sleep(1)
@@ -175,11 +108,8 @@ class hil(mavlinkplug.ModBase):
         time.sleep(2)
         self._mav.mavlink_command('RESET')
         #TODO : add check
-        self._hardware_ready = True
-        return self._hardware_ready
     def FL_initialize(self):
-        self._FL_ready = True
-        return self._FL_ready
+
     def _mod(self):
         #Need 2 threads
         self._mav_2_FL()

@@ -34,68 +34,42 @@ mav_con01 = my_plug.MAVLINK_in('COM3',dialect='pixhawk')
 
 
 #Flight Loop setup
-#Setting JSBSIM_ROOT path
-JSBSIM_ROOT = os.path.abspath('data/jsbsim_data') + os.sep
-
-#Initializing FGFDMExec class
+JSBSIM_ROOT = mavlinkplug.hil.DATA_PATH
 fdm = fdmexec.FGFDMExec(root_dir=JSBSIM_ROOT)
-
-#Loading aircraft model
 fdm.load_model("FG_c172p")
-
-#Initializing Aircraft
-fdm.set_property_value("fcs/mixture-cmd-norm",1.0)
-fdm.set_property_value("propulsion/magneto_cmd",3)
-fdm.set_property_value("propulsion/starter_cmd",1)
-fdm.set_property_value("ic/lat-gc-rad",0.761552988)
-fdm.set_property_value("ic/long-gc-rad",0.0239284344)
-fdm.set_property_value("ic/h-agl-ft",1000)
-fdm.set_property_value("ic/vc-kts",80)
-fdm.set_property_value("ic/gamma-deg",0)
+#Initial Conditions
+fdm.set_property_value("ic/lat-gc-rad", 0.76130117)
+fdm.set_property_value("ic/long-gc-rad",0.0239400705)
+fdm.set_property_value("ic/terrain-elevation-ft", 150)
+fdm.set_property_value("ic/h-agl-ft",2)
 #Trim
 fdm.do_trim(1)
+#Defining exchange parameters
+_IN = [ 'fcs/throttle-cmd-norm[0]',
+        'fcs/throttle-cmd-norm[1]',
+        'fcs/throttle-cmd-norm[2]',
+        'fcs/throttle-cmd-norm[3]'
+        ]
 
-
-#Defining parameters
-_IN = ['fcs/aileron-cmd-norm',
-'fcs/elevator-cmd-norm',
-'fcs/rudder-cmd-norm',
-'fcs/flap-cmd-norm',
-'fcs/speedbrake-cmd-norm',
-'fcs/spoiler-cmd-norm',
-'fcs/pitch-trim-cmd-norm',
-'fcs/roll-trim-cmd-norm',
-'fcs/yaw-trim-cmd-norm',
-'fcs/left-brake-cmd-norm',
-'fcs/right-brake-cmd-norm',
-'fcs/steer-cmd-norm',
-'fcs/throttle-cmd-norm',
-'fcs/mixture-cmd-norm']
-
-_OUT = ['position/h-sl-ft',
-'position/h-sl-meters',
-'position/lat-gc-rad',
-'position/long-gc-rad',
-'position/lat-gc-deg',
-'position/long-gc-deg',
-'position/h-agl-ft',
-'position/h-agl-km',
-'position/terrain-elevation-asl-ft']
+_OUT = [
+        #for HIL_GPS 
+        'position/lat-gc-rad',
+        'position/long-gc-rad',
+        'position/h-sl-ft',
+        #for HIL_SENSOR
+        #Need magnetic field composant
+        'accelerations/udot-ft_sec2',
+        'accelerations/vdot-ft_sec2',
+        'accelerations/wdot-ft_sec2',
+        'velocities/p-aero-rad_sec',
+        'velocities/q-aero-rad_sec',
+        'velocities/r-aero-rad_sec',
+        'atmosphere/pressure-altitude',
+]
 
 #Defining zmq exchange parameters
 zmq_tool = zmq_exchange(_IN,_OUT ,'tcp://127.0.0.1:17171','tcp://localhost:17172' )
-
-
-
-#Registering exchange class to FGFDMExec class
 fdm.exchange_register(zmq_tool)
-
-
-
-#List of exchange class registered
-fdm.list_exchange_class()
-
-#Running FDM loop
 fdm.realtime(dt=1.0/100)
 
 
