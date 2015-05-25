@@ -77,7 +77,7 @@ def ZMQ_suscriber_thread():
     socket.setsockopt(zmq.SUBSCRIBE, '')
     while(running):
         string = socket.recv()
-        topic, messagedata = string.split(" ",1)
+        topic, _timestamp,messagedata = string.split(" ",2)
         if(topic == 'BAD_DATA'):
             continue
         # if(topic not in data):

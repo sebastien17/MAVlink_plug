@@ -10,6 +10,9 @@ class ZmqStream(multiprocessing.Process):
     """
     def __init__(self, zmq_context = None):
         super().__init__()
+        self._zmq_context = zmq_context
+        self._loop = None
+    def setup(self):
         if(zmq_context == None):
             self._context =  zmq.Context()
         else:
@@ -22,11 +25,11 @@ class ZmqStream(multiprocessing.Process):
         host, port = addr if len(addr) == 2 else (addr[0], None)
         if (bind):
             if port:
-                sock.bind('tcp://%s:%s'.format(host, port))
+                sock.bind('tcp://{0}:{1}'.format(str(host), str(port)))
             else:
-                port = sock.bind_to_random_port('tcp://%s'.format(host))
+                port = sock.bind_to_random_port('tcp://{0}'.format(str(host)))
         else:
-            sock.connect('tcp://%s:%s' % (host, port))
+            sock.connect('tcp://{0}:{1}'.format(str(host), str(port)))
         if sock_type == zmq.SUB:
             sock.setsockopt(zmq.SUBSCRIBE, subscribe)
         stream = zmqstream.ZMQStream(sock, self._loop)
@@ -34,6 +37,7 @@ class ZmqStream(multiprocessing.Process):
             stream.on_recv(callback)
         return stream
     def run(self):
+        self.setup()
         self._loop.start()
     def stop(self):
         self._loop.stop()

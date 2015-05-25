@@ -20,6 +20,7 @@
 import mavlinkplug, pyfdm
 from pymavlink.dialects.v10 import pixhawk as mavlink
 import zmq, time, os
+from json import loads
 
 #Define default path for package included data
 DATA_PATH = os.path.dirname(__file__)+os.sep+'data'+os.sep
@@ -64,42 +65,6 @@ class hil(mavlinkplug.ModBase):
         self._FL_ready = False
         print('HIL instance {0} initialized'.format(self._ident))
     
-    def _get_mode_flag(self, flag):
-        if (self._mav.mav_handle().base_mode & flag) == 0:
-            return False
-        else:
-            return True
-
-    def _set_mode_flag(self, flag, enable):
-        t_start = time.time()
-        if self._get_mode_flag(flag) == enable:
-            return
-        while not self._get_mode_flag(flag) == enable:
-            self._mav.mav_handle().set_mode_flag(flag, enable)
-            while self._mav.mav_handle().port.inWaiting() > 0:
-                m = self._mav.mav_handle().recv_msg()
-            time.sleep(0.1)
-            if time.time()  - t_start > 5: raise IOError('Failed to set mode flag, check port')
-    def _set_hil_and_arm(self):
-        t_start = time.time()
-        if (self._get_mode_flag(mavlink.MAV_MODE_FLAG_HIL_ENABLED) and
-           self._get_mode_flag(mavlink.MAV_MODE_FLAG_SAFETY_ARMED)):
-            return
-        while (not
-               (self._get_mode_flag(mavlink.MAV_MODE_FLAG_HIL_ENABLED)
-               and 
-               self._get_mode_flag(mavlink.MAV_MODE_FLAG_SAFETY_ARMED))):
-            self._mav.mav_handle().mav.command_long_send(self._mav.mav_handle().target_system,
-                                self._mav.mav_handle().target_component,
-                                mavlink.MAV_CMD_DO_SET_MODE, 4,
-                                mavlink.MAV_MODE_FLAG_SAFETY_ARMED |
-                                mavlink.MAV_MODE_FLAG_HIL_ENABLED,
-                                0, 0, 0, 0, 0, 0)
-            while self._mav.mav_handle().port.inWaiting() > 0:
-                m = self._mav.mav_handle().recv_msg()
-            time.sleep(0.1)
-            if time.time()  - t_start > 5: raise IOError('Failed to '\
-                    + 'transition to HIL mode and arm, check port and firmware')
     def hardware_initialize(self):
         while(self._mav.mav_handle() == None):
             time.sleep(1)
@@ -108,7 +73,6 @@ class hil(mavlinkplug.ModBase):
         time.sleep(2)
         self._mav.mavlink_command('RESET')
         #TODO : add check
-    def FL_initialize(self):
 
     def _mod(self):
         #Need 2 threads
@@ -117,7 +81,11 @@ class hil(mavlinkplug.ModBase):
 
     @mavlinkplug.in_thread(True)
     def _mav_2_FL(self):
-        pass
+        string = self._from_plug_zmq_socket.recv()
+        msg = QuadCopter.mav_2_FL(string)
+        if(msg !=  None):
+            self._to_FL_zmq_socket.send(' '.join(*msg) 
+
     @mavlinkplug.in_thread(True)
     def _FL_2_mav(self):
         pass
