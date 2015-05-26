@@ -39,6 +39,21 @@ class QuadCopter(multiprocessing.Process):
         self._fdm_model = fdm_model
         self._jsbsim_root = jsbsim_root
         self._dt = dt
+        self._data_in = []
+        self._data_out = []
+
+    def setup(self):
+        #Flight Loop setup
+        self._fdm = fdmexec.FGFDMExec(root_dir=self._jsbsim_root)
+        self._fdm.load_model(self._fdm_model)
+        #Initial Conditions
+        self._fdm.set_property_value("ic/lat-gc-rad", self._lat_rad)
+        self._fdm.set_property_value("ic/long-gc-rad",self._long_rad)
+        self._fdm.set_property_value("ic/terrain-elevation-ft", self._terrain_elev_ft)
+        self._fdm.set_property_value("ic/h-agl-ft",self._h_agl_ft)
+        #Fdm Trim
+        self._fdm.do_trim(1)
+        # Zmq setup
         self._data_in = [ 
             'fcs/throttle-cmd-norm[0]',
             'fcs/throttle-cmd-norm[1]',
@@ -61,18 +76,6 @@ class QuadCopter(multiprocessing.Process):
             'velocities/r-aero-rad_sec',
             'atmosphere/pressure-altitude',
             ]
-    def setup(self):
-        #Flight Loop setup
-        self._fdm = fdmexec.FGFDMExec(root_dir=self._jsbsim_root)
-        self._fdm.load_model(self._fdm_model)
-        #Initial Conditions
-        self._fdm.set_property_value("ic/lat-gc-rad", self._lat_rad)
-        self._fdm.set_property_value("ic/long-gc-rad",self._long_rad)
-        self._fdm.set_property_value("ic/terrain-elevation-ft", self._terrain_elev_ft)
-        self._fdm.set_property_value("ic/h-agl-ft",self._h_agl_ft)
-        #Fdm Trim
-        self._fdm.do_trim(1)
-        # Zmq setup
         if(self._zmq_context == None):
             self._zmq_context = Context()
         self._zmq_tool = zmq_exchange(self._data_in,self._data_out ,self._zmq_in,self._zmq_out)
