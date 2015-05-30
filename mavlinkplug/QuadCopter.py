@@ -72,7 +72,6 @@ class QuadCopter(multiprocessing.Process):
         else:
             self._jsbsim_root = self.JSBSIM_DEFAULT_PATH
         self._dt = dt
-
     def setup(self):
         #Flight Loop setup
         self._fdm = fdmexec.FGFDMExec(root_dir=self._jsbsim_root)
