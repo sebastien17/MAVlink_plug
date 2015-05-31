@@ -32,8 +32,8 @@ from json import dumps, loads
 
 ZMQ_MESSAGE_BINARY = 'B'
 ZMQ_MESSAGE_JSON   = 'C'
-ZMQ_BRIDGE_IN = 'inproc://in'
-ZMQ_BRIDGE_OUT = 'inproc://out'
+ZMQ_BRIDGE_IN = 'inproc://in_plug'
+ZMQ_BRIDGE_OUT = 'inproc://out_plug'
 
 logging.basicConfig(filename='example.log',level=logging.DEBUG)
 
@@ -364,41 +364,42 @@ class Plug(object):
         self._input_list = []                               #Thread list for MAVLINK connection
         self._output_list = []                              #Thread list for other than MAVLINK connection
         self._verbose = False
-        self._zmq_bridge_in = ZMQ_BRIDGE_IN
-        self._zmq_bridge_out = ZMQ_BRIDGE_OUT
-        self._bridge = Bridge(self._zmq_context, self._zmq_bridge_in, self._zmq_bridge_out)
+        self.zmq_bridge_in = ZMQ_BRIDGE_IN
+        self.zmq_bridge_out = ZMQ_BRIDGE_OUT
+        self._bridge = Bridge(self._zmq_context, self.zmq_bridge_in, self.zmq_bridge_out)
         self._bridge.run()
     @classmethod
     def plugin_register(cls, name, _method):
         setattr(cls, name, _method)
-    
+    def Context(self):
+        return self._zmq_context
     def MAVLINK_in(self, *argv, **kwargs):
         ident = '{0:02d}'.format(len(self._input_list))
-        h = MAVLINK_connection(self._zmq_context, self._zmq_bridge_in, ident, *argv, **kwargs)
+        h = MAVLINK_connection(self._zmq_context, self.zmq_bridge_in, ident, *argv, **kwargs)
         h.run()
         self._input_list.append(h)
         return h
     def ZMQ_out(self, port):
         ident = '{0:02d}'.format(len(self._output_list))
-        h = ZMQ_publisher(self._zmq_context, self._zmq_bridge_out, ident, port)
+        h = ZMQ_publisher(self._zmq_context, self.zmq_bridge_out, ident, port)
         h.run()
         self._output_list.append(h)
         return h
     def FILE_out(self, file):
         ident = '{0:02d}'.format(len(self._output_list))
-        h = FILE_writer(self._zmq_context, self._zmq_bridge_out, ident, file)
+        h = FILE_writer(self._zmq_context, self.zmq_bridge_out, ident, file)
         h.run()
         self._output_list.append(h)
         return h
     def BIN_out(self, file):
         ident = '{0:02d}'.format(len(self._output_list))
-        h = BIN_writer(self._zmq_context, self._zmq_bridge_out, ident, file)
+        h = BIN_writer(self._zmq_context, self.zmq_bridge_out, ident, file)
         h.run()
         self._output_list.append(h)
         return h
     def TCP_in_out(self, mavlink_connection, address, port):
         ident = '{0:02d}'.format(len(self._output_list))
-        h = TCP_connection(self._zmq_context, self._zmq_bridge_out, ident, mavlink_connection, address, port)
+        h = TCP_connection(self._zmq_context, self.zmq_bridge_out, ident, mavlink_connection, address, port)
         h.run()
         self._output_list.append(h)
         return h

@@ -3,29 +3,32 @@ from zmq.eventloop import ioloop, zmqstream
 import zmq, multiprocessing
 
 
-class ZmqStream(multiprocessing.Process):
+class ZmqBase(multiprocessing.Process):
     """
     This is the base for all processes and offers utility functions
     for setup and creating new streams.
     """
-    def __init__(self):
-        super(ZmqStream,self).__init__()
-        self._zmq_context =  zmq.Context()
+    def __init__(self, zmq_context = None):
+        super(ZmqBase,self).__init__()
+        self._zmq_context =  zmq_context
         self._loop = None
     def setup(self):
+        if(self._zmq_context == None):
+            self._zmq_context = zmq.Context()
         self._loop = ioloop.IOLoop.instance()
     def stream(self, sock_type, addr, bind = True, callback=None, subscribe=b''):
         sock = self._zmq_context.socket(sock_type)
+        if (sock_type == zmq.SUB):
+            sock.setsockopt(zmq.SUBSCRIBE, subscribe)
         if (bind):
             sock.bind(addr)
         else:
             sock.connect(addr)
-        if sock_type == zmq.SUB:
-            sock.setsockopt(zmq.SUBSCRIBE, subscribe)
-        stream = zmqstream.ZMQStream(sock, self._loop)
+        _stream = zmqstream.ZMQStream(sock, self._loop)
+        _stream.flush(zmq.POLLIN|zmq.POLLOUT)
         if (callback):
-            stream.on_recv(callback)
-        return stream
+            _stream.on_recv(callback)
+        return _stream
     def run(self):
         self.setup()
         self._loop.start()

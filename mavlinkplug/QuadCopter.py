@@ -115,5 +115,3 @@ class QuadCopter(multiprocessing.Process):
             temp[cls._data_out[index]] = float(value)
         return _temp
 
-if(__name__ == '__main__'):
-    pass
