@@ -34,11 +34,11 @@ class Hil(mavlinkplug.Base.ZmqBase):
     def setup(self):
         super(Hil,self).setup()
         #Define stream listening from plug
-        self.stream(zmq.SUB, self._addr_from_plug, bind = False, callback = self._from_plug)
+        self.stream(zmq.SUB, self._addr_from_plug, bind = False, callback = self._plug_2_FL)
         #Define stream publishing to FL
         self._stream_to_FL  = self.stream(zmq.PUB, self._addr_to_FL)
         #Define stream listening from FL
-        self.stream(zmq.SUB, self._addr_from_FL, callback = self._from_FL)
+        self.stream(zmq.SUB, self._addr_from_FL, callback = self._FL_2_plug)
         #Define stream publishing to plug
         self._stream_to_plug  = self.stream(zmq.PUB, self._addr_to_plug, bind = False)
     def hardware_initialize(self):
@@ -53,9 +53,12 @@ class Hil(mavlinkplug.Base.ZmqBase):
     def FL_initialize(self):
         aircraft = self._Aircraft_Type_cls(zmq_in = self._addr_to_FL, zmq_out = self._addr_from_FL)
         aircraft.start()
-    def _from_plug(self, msg):
+    def _plug_2_FL(self, msg):
         _msg = msg[0]
-        print('MSG from plug : ' + _msg)
-    def _from_FL(self, msg):
+        data_2_FL = self.Aircraft_Type_cls.mav_2_FL(_msg)
+        if(data_2_FL != None):
+            msg_2_FL = ' '.join(data_2_FL)
+            self._stream_to_FL(msg_2_FL)
+    def _FL_2_plug(self, msg):
         _msg = msg[0]
-        print('MSG from FL : ' + _msg)   
+        data_2_plug = self.Aircraft_Type_cls.FL_2_mav(_msg)

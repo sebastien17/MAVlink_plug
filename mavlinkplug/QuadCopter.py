@@ -93,7 +93,6 @@ class QuadCopter(multiprocessing.Process):
         self._fdm.realtime(self._dt)
     def stop(self):
         self.terminate()
-    
     @classmethod
     def mav_2_FL(cls, string):
         topic, _timestamp, messagedata = string.split(" ",2)
@@ -106,12 +105,13 @@ class QuadCopter(multiprocessing.Process):
                     )
         else:
             return None
-   
     @classmethod
     def FL_2_mav(cls, string):
         _temp = []
         _messagedata = string.split(" ")
-        for index, value in item(_messagedata):
-            temp[cls._data_out[index]] = float(value)
+        #TODO : Data treatment
+        _temp = _messagedata
+        return _temp
+        
         return _temp
 
