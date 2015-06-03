@@ -26,14 +26,22 @@ from mavlinkplug.Exception import MAVlinkPlugException
 
 
 #TODO : Message Type definition
-MSG_PLUG_TYPE_MAV_MSG=1
+MSG_PLUG_TYPE_MAV_MSG = 1
+MSG_PLUG_TYPE_MAV_COMMAND = 13
+MSG_PLUG_TYPE_KILL = 17
 
 MSG_PLUG_TYPE = {
-    MSG_PLUG_TYPE_MAV_MSG : 'MAVlinkPlugMessage'
+    MSG_PLUG_TYPE_MAV_MSG : 'MAVlinkPlugMessage',
+    MSG_PLUG_TYPE_MAV_COMMAND : 'MAVlinkPlugMavCommand'
+    MSG_PLUG_TYPE_KILL : 'MAVlinkPlugKill'
     }
     
 #TODO : Special Destination, Source Definition
 MSG_PLUG_DEST_TYPE_ALL = 255
+
+def DEF_PACK(_integer):
+    return struct.pack('!B', _integer)
+
 
 class PlugMessage(object):
     
@@ -42,17 +50,16 @@ class PlugMessage(object):
             self._dest = None
             self._sour = None
             self._type = None
-            self._mav_msg_data = None
+            self._timestamp = None
+            self._data = None
         else:
-            self._dest, self._sour, self._type  = struct.unpack('!BBB',msg)
-            self._mav_msg_data = msg[3:]
-        
+            self._dest, self._sour, self._type, self._timestamp, self._data = struct.unpack('!BBBQs',msg)
+        self._check_header()
     def set_header(self,dest, type, source):
         self._dest = dest
         self._sour = type
         self._type = source
         self._check_header()
-    
     def _check_header(self):
         #Destination check
         if( not isinstance(self._dest, int) or self._dest < 0 or self._dest > 255):
@@ -63,14 +70,21 @@ class PlugMessage(object):
         #Type check
         if( not self._type in MSG_PLUG_TYPE)): 
             raise MAVlinkPlugException('Invalid header data : type : {0}'.format(self._type))
-
+        #Timestamp check
+        if( not isinstance(self._timestamp, int) or self._timestamp < 0):
+            raise MAVlinkPlugException('Invalid header data : timestamp : {0}'.format(self._timestamp))
     def set_data(self, data):
-        self._mav_msg_data
-    
-    def get_plug_msg_buf(self):
+        self._data = data
+    def get_type(self):
+        return self._type
+    def get_source(self):
+        return self._sour   
+    def get_data(self):
+        return self._data
+    def get_plug_msg(self):
         if(self._dest != None and self._sour != None and self._type != None):
-            header = struct.pack('!BBB', self._dest, self._sour, self._type)
-            msg = header + self._mav_msg_data
+            header = struct.pack('!BBBQ', self._dest, self._sour, self._type, self._timestamp)
+            msg = header + self._data
             return msg
         else:
             raise MAVlinkPlugException('Header not defined')
@@ -151,5 +165,5 @@ class MAVlinkPlugMessage(PlugMessage):
         m._payload = msgbuf[6:-2]
         m._crc = crc
         m._header = mavlink.MAVLink_header(msgId, mlen, seq, srcSystem, srcComponent)
-        self._mav_msg_data = m
+        self._data = m
         return m

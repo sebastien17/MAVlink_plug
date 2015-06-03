@@ -1,9 +1,19 @@
 from __future__ import print_function
 from zmq.eventloop import ioloop, zmqstream
-import zmq, multiprocessing
+import zmq, multiprocessing, threading
 
+def in_thread(isDaemon = True):
+    def base_in_thread(fn):
+        '''Decorator to create a threaded function '''
+        def wrapper(*args, **kwargs):
+            t = threading.Thread(target=fn, args=args, kwargs=kwargs)
+            t.setDaemon(isDaemon)
+            t.start()
+            return t
+        return wrapper
+    return base_in_thread
 
-class ZmqBase(multiprocessing.Process):
+class MAVLinkPlugZmqBase(multiprocessing.Process):
     """
     This is the base for all processes and offers utility functions
     for setup and creating new streams.
@@ -34,3 +44,28 @@ class ZmqBase(multiprocessing.Process):
         self._loop.start()
     def stop(self):
         self._loop.stop()
+
+        
+class MAVLinkPlugModBase(object):
+    ''' Base class for all mods'''
+    def __init__(self):
+        self._run = False
+        self._thread = None
+        self.isDaemon = True
+        self._ident = ''
+    def _mod(self):
+        pass
+    def run(self):
+        self._run = True
+        @in_thread(self.isDaemon)
+        def __t():
+            self._mod()
+        self._thread = __t()
+    def stop(self):
+        self._run = False
+    def ident(self):
+        '''Return connection ident'''
+        return self._ident
+    def info(self):
+        '''Return connection information'''
+        return {}

@@ -18,20 +18,20 @@
 #	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 from __future__ import print_function
-import mavlinkplug.Base
+from mavlinkplug.Base import ZmqBase
 import zmq
 from time import sleep
 
-class Hil(mavlinkplug.Base.ZmqBase):
+class MAVLinkPlugHil(mavlinkplug.Base.ZmqBase):
     def __init__(self, Aircraft_Type_cls, module_info):
-        super(Hil, self).__init__()
+        super(MAVLinkPlugHil, self).__init__()
         self._addr_to_plug, self._addr_from_plug, self._ident =  module_info
         self._addr_to_FL = 'tcp://127.0.0.1:45063'
         self._addr_from_FL = 'tcp://127.0.0.1:45064'
         self._Aircraft_Type_cls = Aircraft_Type_cls
         self.daemon = True
     def setup(self):
-        super(Hil,self).setup()
+        super(MAVLinkPlugHil,self).setup()
         #Define stream listening from plug
         self.stream(zmq.SUB, self._addr_from_plug, bind = False, callback = self._plug_2_FL)
         #Define stream publishing to FL
