@@ -77,24 +77,6 @@ class ModBase(object):
         '''Return connection information'''
         return {}
     
-class Bridge(ModBase):
-        def __init__(self, zmq_context, zmq_sock_in, zmq_sock_out):
-            super(Bridge, self).__init__()
-            self._zmq_context = zmq_context
-            self._zmq_sock_in = zmq_sock_in
-            self._zmq_sock_out = zmq_sock_out
-        def _mod(self):
-            '''Create the ZMQ bridge between in & out'''
-            socket_in =  self._zmq_context.socket(zmq.SUB)
-            socket_in.bind(self._zmq_sock_in)                           #Bind because most stable
-            socket_in.setsockopt(zmq.SUBSCRIBE, '')
-            socket_out =  self._zmq_context.socket(zmq.PUB)
-            socket_out.bind(self._zmq_sock_out)                         #Bind because most stable
-            while (self._run):
-                string = socket_in.recv()                           #Yield to event loop
-                socket_out.send(string)    
-            socket.close()
-            
 class MAVLINK_connection(ModBase):
         def __init__(self, zmq_context, zmq_sock_in, ident, *argv, **kwargs):
             super(MAVLINK_connection, self).__init__()

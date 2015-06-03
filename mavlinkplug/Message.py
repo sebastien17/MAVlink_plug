@@ -18,18 +18,22 @@
 #	along with MAVlinkplug.  If not, see <http://www.gnu.org/licenses/>.
 #	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+
+import struct
 #For now just available for V1.0 Pixhawk Message
 import pymavlink.dialects.v10.pixhawk as mavlink
-import struct
+from mavlinkplug.Exception import MAVlinkPlugException 
+
 
 #TODO : Message Type definition
-MSG_PLUG_ID_MAV_MSG=1
+MSG_PLUG_TYPE_MAV_MSG=1
 
 MSG_PLUG_TYPE = {
-    MSG_PLUG_ID_MAV_MSG : MAVlinkPlugMessage
+    MSG_PLUG_TYPE_MAV_MSG : 'MAVlinkPlugMessage'
     }
+    
 #TODO : Special Destination, Source Definition
-from mavlinkplug.Exception import MAVlinkPlugException 
+MSG_PLUG_DEST_TYPE_ALL = 255
 
 class PlugMessage(object):
     

@@ -19,9 +19,10 @@
 #	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 from __future__ import print_function
+
 import zmq
 from zmq.devices import ProcessDevice
-
+from time import sleep
 
 class Plug(object):
     '''
@@ -50,5 +51,19 @@ class Plug(object):
         self._processd.bind_in(self.zmq_bridge_in)
         self._processd.bind_out(self.zmq_bridge_out)
         self._processd.setsockopt_in(zmq.SUBSCRIBE,b'')
+        self._ident_number = 0
+        
+    def plug_info(self):
+        self._ident_number = self._ident_number + 1 
+        return (self.zmq_bridge_in, self.zmq_bridge_out, self._ident_number - 1)
+    
     def start(self):
         self._processd.start()
+        
+    def server_forever(self):
+        while(True):
+            try:
+                sleep(1)
+            except(KeyboardInterrupt, SystemExit):
+                print('Closing Plug')
+                break

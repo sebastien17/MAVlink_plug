@@ -23,10 +23,9 @@ import zmq
 from time import sleep
 
 class Hil(mavlinkplug.Base.ZmqBase):
-    def __init__(self, Aircraft_Type_cls, Plug_inst):
+    def __init__(self, Aircraft_Type_cls, module_info):
         super(Hil, self).__init__()
-        self._addr_from_plug = Plug_inst.zmq_bridge_out
-        self._addr_to_plug = Plug_inst.zmq_bridge_in
+        self._addr_to_plug, self._addr_from_plug, self._ident =  module_info
         self._addr_to_FL = 'tcp://127.0.0.1:45063'
         self._addr_from_FL = 'tcp://127.0.0.1:45064'
         self._Aircraft_Type_cls = Aircraft_Type_cls
