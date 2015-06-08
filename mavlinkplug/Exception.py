@@ -21,5 +21,5 @@
 class MAVlinkPlugException(Exception):
     '''MAVLink error class'''
     def __init__(self, msg):
-        super(MAVlinkplugException,self).__init__(msg)
+        super(MAVlinkPlugException,self).__init__(msg)
         self.message = msg

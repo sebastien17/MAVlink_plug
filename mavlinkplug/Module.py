@@ -43,8 +43,6 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
         self._kwargs = kwargs
         self._mavh = None
         self._in_msg = 0
-        self._ok_msg = 0
-        self._out_msg = 0
 
     def try_connection(self):
         self._mavh = None
@@ -67,32 +65,21 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
         socket.connect(self._zmq_sock_out)                       #New socket which publish to the bridge
         self.try_connection()
         logging.info('MAVlinkPlugConnection {0} loop start'.format(self._ident))
+        plug_message = mavlinkplug.Message.PlugMessage()
         while(self._run):
-            try:
-                msg = self._mavh.recv_msg()                        #Blocking TBC
-            except:
-                logging.info('MAVlinkPlugConnection connection {0} lost'.format(self._ident))
-                self.try_connection()
-            else:
-                if msg is not None:
-                    d_type = msg.get_type()
-                    e_string  = ZMQ_MESSAGE_BINARY + '{0} {1:.3f} {2}'.format(self._ident, msg._timestamp,msg.get_msgbuf())
-                    socket.send(e_string)
-                    self._in_msg += 1
-                    if (d_type != 'BAD DATA' and d_type != 'BAD_DATA'):      #BAD DATA message ignored
-                        self._ok_msg += 1
-                        data = {}
-                        data[d_type] = {}
-                        for i in msg.get_fieldnames():
-                            data[d_type][i]=msg.__dict__[i]
-                        try:
-                            json_data = dumps(data)
-                        except:
-                            pass
-                        else:
-                            d_string = ZMQ_MESSAGE_JSON + '{0} {1:.3f} {2}'.format(self._ident, msg._timestamp , json_data)
-                            self._out_msg += 1
-                            socket.send(d_string)
+            msg = self._mavh.recv_msg()                        #Blocking TBC
+            if msg is not None:
+                logging.debug(msg)
+                self._in_msg += 1
+                plug_message = mavlinkplug.Message.PlugMessage()
+                plug_message.set_header(destination = mavlinkplug.Message.MSG_PLUG_DEST_TYPE_ALL,
+                                        type = mavlinkplug.Message.MSG_PLUG_TYPE_MAV_MSG,
+                                        source = self._ident,
+                                        timestamp = msg._timestamp)
+                plug_message.set_data(msg.get_msgbuf())
+                logging.debug(plug_message.get_plug_msg())
+                socket.send(plug_message.get_plug_msg())
+        del(plug_message)
         logging.info('MAVlinkPlugConnection {0} loop stop'.format(self._ident))
         socket.close()
     @in_thread(isDaemon = True)

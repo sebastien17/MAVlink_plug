@@ -31,14 +31,14 @@ class Plug(object):
     SUB socket has no filter
     '''
     def __init__(self, zmq_in = None, zmq_out = None):
-    '''
-    Instanciate the object
-    
-    In :
-        zmq_in  : zmq address:port combo for input (SUB)
-        zmq_out  : zmq address:port combo for output (PUB)
+        '''
+        Instanciate the object
+        
+        In :
+            zmq_in  : zmq address:port combo for input (SUB)
+            zmq_out  : zmq address:port combo for output (PUB)
 
-    '''
+        '''
         if(zmq_in == None):
             self.zmq_bridge_in = 'tcp://127.0.0.1:42569'
         else:
@@ -59,8 +59,8 @@ class Plug(object):
     
     def start(self):
         self._processd.start()
-        
-    def server_forever(self):
+    @staticmethod  
+    def server_forever():
         while(True):
             try:
                 sleep(1)
