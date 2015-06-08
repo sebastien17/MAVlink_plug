@@ -32,7 +32,7 @@ MSG_PLUG_TYPE_KILL = 17
 
 MSG_PLUG_TYPE = {
     MSG_PLUG_TYPE_MAV_MSG : 'MAVlinkPlugMessage',
-    MSG_PLUG_TYPE_MAV_COMMAND : 'MAVlinkPlugMavCommand'
+    MSG_PLUG_TYPE_MAV_COMMAND : 'MAVlinkPlugMavCommand',
     MSG_PLUG_TYPE_KILL : 'MAVlinkPlugKill'
     }
     
@@ -65,10 +65,10 @@ class PlugMessage(object):
         if( not isinstance(self._dest, int) or self._dest < 0 or self._dest > 255):
             raise MAVlinkPlugException('Invalid header data : destination : {0}'.format(self._dest))
         #Source check
-         if( not isinstance(self._sour, int) or self._sour < 0 or self._sour > 255):
+        if( not isinstance(self._sour, int) or self._sour < 0 or self._sour > 255):
             raise MAVlinkPlugException('Invalid header data : source : {0}'.format(self._sour))
         #Type check
-        if( not self._type in MSG_PLUG_TYPE)): 
+        if( not self._type in MSG_PLUG_TYPE): 
             raise MAVlinkPlugException('Invalid header data : type : {0}'.format(self._type))
         #Timestamp check
         if( not isinstance(self._timestamp, int) or self._timestamp < 0):
@@ -91,7 +91,7 @@ class PlugMessage(object):
 
             
 class MAVlinkPlugMessage(PlugMessage):
-        def decode(self, msgbuf):
+    def decode(self, msgbuf):
         '''decode a buffer as a MAVLink message'''
         # decode the header
         try:

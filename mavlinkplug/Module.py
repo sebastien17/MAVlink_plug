@@ -18,33 +18,37 @@
 #	along with MAVlinkplug.  If not, see <http://www.gnu.org/licenses/>.
 #	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-from __future__ import print_function
+#Core Module
+import logging
+from time import sleep
+import zmq
 
-import mavlinkplug.Message
-from mavlinkplug.Base import MAVLinkPlugZmqBase, in_thread
+#External Module
+from pymavlink import mavutil
+
+#Internal Module
+import  mavlinkplug.Message
+from mavlinkplug.Base import MAVLinkPlugModBase, MAVLinkPlugZmqBase, in_thread
 from mavlinkplug.Exception import MAVlinkPlugException
 
-from pymavlink import mavutil
-import zmq
 
 
 class MAVlinkPlugConnection(MAVLinkPlugModBase):
     def __init__(self, module_info, *argv, **kwargs):
-        super(MAVLINK_connection, self).__init__()
+        super(MAVlinkPlugConnection, self).__init__()
+        self._name = 'MAVlinkPlugConnection'
         self._zmq_context = zmq.Context()
         self._zmq_sock_out , self._zmq_sock_in, self._ident = module_info
-        self.isDaemon = False
         self._argv = argv
         self._kwargs = kwargs
         self._mavh = None
         self._in_msg = 0
         self._ok_msg = 0
         self._out_msg = 0
-    def mav_handle(self):
-        return self._mavh
+
     def try_connection(self):
         self._mavh = None
-        logging.info(('MAVLINK connection {0} initialising'.format(self._ident))
+        logging.info('MAVLINK connection {0} initialising'.format(self._ident))
         while(self._run):
             try:
                 self._mavh = mavutil.mavlink_connection(*self._argv,**self._kwargs)
@@ -57,17 +61,17 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
     def _mod(self):
         self._mod_1()
         self._mod_2()
-    @in_thread
+    @in_thread(isDaemon = True)
     def _mod_1(self):
         socket =  self._zmq_context.socket(zmq.PUB)
         socket.connect(self._zmq_sock_out)                       #New socket which publish to the bridge
         self.try_connection()
-        logging.info('MAVLINK_connection {0} loop start'.format(self._ident))
+        logging.info('MAVlinkPlugConnection {0} loop start'.format(self._ident))
         while(self._run):
             try:
                 msg = self._mavh.recv_msg()                        #Blocking TBC
             except:
-                logging.info('MAVLINK connection {0} lost'.format(self._ident))
+                logging.info('MAVlinkPlugConnection connection {0} lost'.format(self._ident))
                 self.try_connection()
             else:
                 if msg is not None:
@@ -89,16 +93,20 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
                             d_string = ZMQ_MESSAGE_JSON + '{0} {1:.3f} {2}'.format(self._ident, msg._timestamp , json_data)
                             self._out_msg += 1
                             socket.send(d_string)
-        logging.info('MAVLINK_connection {0} loop stop'.format(self._ident))
+        logging.info('MAVlinkPlugConnection {0} loop stop'.format(self._ident))
         socket.close()
+    @in_thread(isDaemon = True)
     def _mod_2(self):
         socket =  self._zmq_context.socket(zmq.SUB)
         socket.setsockopt(zmq.SUBSCRIBE, mavlinkplug.Message.DEF_PACK(mavlinkplug.Message.MSG_PLUG_DEST_TYPE_ALL))
         socket.setsockopt(zmq.SUBSCRIBE, mavlinkplug.Message.DEF_PACK(self._ident))
         socket.connect(self._zmq_sock_in)
         while(self._run):
-            _mavlinkplug_message = MAVlinkPlugMessage(msg = socket.recv())
-            if(_mavlinkplug_message.get_type() == mavlinkplug.Message.MSG_PLUG_TYPE_KILL):
+            _mavlinkplug_message = mavlinkplug.Message.MAVlinkPlugMessage(msg = socket.recv())
+            #Do not treat message from this module
+            if(_mavlinkplug_message.get_source() == self._ident):
+                continue
+            elif(_mavlinkplug_message.get_type() == mavlinkplug.Message.MSG_PLUG_TYPE_KILL):
                 self.stop()
             elif(_mavlinkplug_message.get_type() == mavlinkplug.Message.MSG_PLUG_TYPE_MAV_MSG):
                 self.write(_mavlinkplug_message.get_data())
@@ -139,7 +147,7 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
                 logging.info('Ident: {0} '.format(self._ident) + logging_string)
                 return True
             except Exception as e:
-                print(e)
+                logging.info(e)
                 logging.debug('Mavlink Command exception occured : {0}'.format(str(e)))
                 return False
     def write(self, data):
@@ -150,7 +158,7 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
             except: 
                 pass
         return False
-    def stop(self)
+    def stop(self):
         self._run == False
     def info(self):
         return {'ident' :  self._ident, 'argv': self._argv, 'kwargs': self._kwargs, 'msg_stats': {'in_msg': self._in_msg, 'ok_msg': self._ok_msg, 'out_msg': self._out_msg}}

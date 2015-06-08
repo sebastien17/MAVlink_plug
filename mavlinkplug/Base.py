@@ -19,7 +19,7 @@ class MAVLinkPlugZmqBase(multiprocessing.Process):
     for setup and creating new streams.
     """
     def __init__(self, zmq_context = None):
-        super(ZmqBase,self).__init__()
+        super(MAVLinkPlugZmqBase,self).__init__()
         self._zmq_context =  zmq_context
         self._loop = None
     def setup(self):
@@ -44,18 +44,21 @@ class MAVLinkPlugZmqBase(multiprocessing.Process):
         self._loop.start()
     def stop(self):
         self._loop.stop()
+    def insert_ident(self, string):
+        return self._name + ' {0} : '.format(self._ident)
 
         
 class MAVLinkPlugModBase(object):
     ''' Base class for all mods'''
     def __init__(self):
         self._run = False
-        self._thread = None
+        self._thread = []
         self.isDaemon = True
         self._ident = ''
+        self._name = ''
     def _mod(self):
         pass
-    def run(self):
+    def start(self):
         self._run = True
         @in_thread(self.isDaemon)
         def __t():
@@ -69,3 +72,5 @@ class MAVLinkPlugModBase(object):
     def info(self):
         '''Return connection information'''
         return {}
+    def insert_ident(self, string):
+        return self._name + ' {0} : '.format(self._ident)
