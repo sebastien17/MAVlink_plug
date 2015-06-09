@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #	-*- coding: utf-8 -*-
 
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -17,13 +18,18 @@
 #	along with MAVlinkplug.  If not, see <http://www.gnu.org/licenses/>.
 #	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+#Core Module
 from __future__ import print_function
-from mavlinkplug.Base import ZmqBase
 import zmq
 from time import sleep
 
-class MAVLinkPlugHil(mavlinkplug.Base.ZmqBase):
-    def __init__(self, Aircraft_Type_cls, module_info):
+#Internal Module
+from mavlinkplug.Base import MAVLinkPlugZmqBase
+import  mavlinkplug.Message
+
+
+class MAVLinkPlugHil(MAVLinkPlugZmqBase)
+    def __init__(self, module_info, Aircraft_Type_cls):
         super(MAVLinkPlugHil, self).__init__()
         self._addr_to_plug, self._addr_from_plug, self._ident =  module_info
         self._addr_to_FL = 'tcp://127.0.0.1:45063'
@@ -37,7 +43,7 @@ class MAVLinkPlugHil(mavlinkplug.Base.ZmqBase):
         #Define stream publishing to FL
         self._stream_to_FL  = self.stream(zmq.PUB, self._addr_to_FL)
         #Define stream listening from FL
-        self.stream(zmq.SUB, self._addr_from_FL, callback = self._FL_2_plug)
+        self.stream(zmq.SUB, self._addr_from_FL, callback = self._FL_2_plug, subscribe = [b''])
         #Define stream publishing to plug
         self._stream_to_plug  = self.stream(zmq.PUB, self._addr_to_plug, bind = False)
     def hardware_initialize(self):

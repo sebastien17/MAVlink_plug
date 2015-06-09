@@ -68,7 +68,7 @@ class PlugHeader(object):
         #Timestamp check
         if( not isinstance(self.timestamp, float) or self.timestamp < 0):
             raise MAVlinkPlugException('Invalid header data : timestamp : {0}'.format(self.timestamp))
-    def unpack(self, msg):
+    def extract(self, msg):
         _dest, _sour, _type, _timestamp, _msg_data = struct.unpack(self._pack + 's',msg)
         self.set_header(_dest, _sour, _type, _timestamp)
         return _msg_data
@@ -82,7 +82,7 @@ class PlugMessage(object):
             self._header = PlugHeader()
             self._data = None
         else:
-             self._data = self._header.unpack(msg)
+             self._data = self._header.extract(msg)
     def set_header(self,**kwargs):
         self._header.set_header(**kwargs)
     def set_data(self, data):
@@ -97,12 +97,16 @@ class PlugMessage(object):
         return self._header.timestamp
     def get_data(self):
         return self._data
-    def get_plug_msg(self):
+    def pack(self):
         header = self._header.pack()
         msg = header + self._data
         return msg
-
-            
+    def get_unpacked_data(self):
+        if(self._data == None):
+            raise MAVlinkPlugException('No PlugMessage data')
+        
+        
+        
 class MAVlinkPlugMessage(PlugMessage):
     def decode(self, msgbuf):
         '''decode a buffer as a MAVLink message'''

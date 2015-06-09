@@ -79,8 +79,8 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
                                         source = self._ident,
                                         timestamp = msg._timestamp)
                 plug_message.set_data(msg.get_msgbuf())
-                logging.debug(plug_message.get_plug_msg())
-                socket.send(plug_message.get_plug_msg())
+                logging.debug(plug_message.pack())
+                socket.send(plug_message.pack())
             else:
                 if(time_idle == None):
                     time_idle = time()
@@ -158,3 +158,22 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
     def info(self):
         return {'ident' :  self._ident, 'argv': self._argv, 'kwargs': self._kwargs, 'msg_stats': {'in_msg': self._in_msg, 'ok_msg': self._ok_msg, 'out_msg': self._out_msg}}
     
+class MAVlinkPlugFileWriter(MAVLinkPlugZmqBase):
+    def __init__(self, module_info, file):
+        super(MAVlinkPlugFileWriter, self).__init__()
+        self._addr_to_plug, self._addr_from_plug, self._ident =  module_info
+        self._file_name = file
+        self._file_descriptor = None
+        self.daemon = True
+    def setup(self):
+        super(MAVlinkPlugFileWriter,self).setup()
+        #Define stream listening from plug
+        self.stream(zmq.SUB, self._addr_from_plug, bind = False, callback = self._plug_2_file)
+        self._file_descriptor = open(self._file_name, 'w', 500)
+    def _plug_2_file(self, p_msg):
+        plug_msg = mavlinkplug.Message.MAVlinkPlugMessage(msg = p_msg)
+        string_to_write = '{0} {1} {2} {3} {4}'.format(plug_msg.get_timestamp(), plug_msg.get_destination(), plug_msg.get_source(), plug_msg.get_type(), plug_msg.get_data())
+        print(string, file=self._file_descriptor)
+    def stop(self):
+        super(MAVlinkPlugFileWriter, self).stop()
+        self._file_descriptor.close()
