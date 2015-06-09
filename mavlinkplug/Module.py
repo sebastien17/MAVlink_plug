@@ -20,7 +20,7 @@
 
 #Core Module
 import logging
-from time import sleep
+from time import sleep, time
 import zmq
 
 #External Module
@@ -46,7 +46,7 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
 
     def try_connection(self):
         self._mavh = None
-        logging.info('MAVLINK connection {0} initialising'.format(self._ident))
+        logging.info('MAVlinkPlugConnection {0} connection initialising'.format(self._ident))
         while(self._run):
             try:
                 self._mavh = mavutil.mavlink_connection(*self._argv,**self._kwargs)
@@ -55,7 +55,7 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
                 sleep(1)                                #Wait 1 second until next try
             else:
                 break
-        logging.info('MAVLINK connection {0} acquired'.format(self._ident))
+        logging.info('MAVlinkPlugConnection {0} connection acquired'.format(self._ident))
     def _mod(self):
         self._mod_1()
         self._mod_2()
@@ -66,9 +66,11 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
         self.try_connection()
         logging.info('MAVlinkPlugConnection {0} loop start'.format(self._ident))
         plug_message = mavlinkplug.Message.PlugMessage()
+        time_idle = None
         while(self._run):
             msg = self._mavh.recv_msg()                        #Blocking TBC
             if msg is not None:
+                time_idle = None
                 logging.debug(msg)
                 self._in_msg += 1
                 plug_message = mavlinkplug.Message.PlugMessage()
@@ -79,6 +81,12 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
                 plug_message.set_data(msg.get_msgbuf())
                 logging.debug(plug_message.get_plug_msg())
                 socket.send(plug_message.get_plug_msg())
+            else:
+                if(time_idle == None):
+                    time_idle = time()
+                elif(time_idle + 5 < time()):
+                    self.try_connection()
+                logging.info('MAVlinkPlugConnection {0} connection idle for '.format(self._ident, time() - time_idle))
         del(plug_message)
         logging.info('MAVlinkPlugConnection {0} loop stop'.format(self._ident))
         socket.close()
