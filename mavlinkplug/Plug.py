@@ -56,7 +56,6 @@ class Plug(object):
     def plug_info(self):
         self._ident_number = self._ident_number + 1 
         return (self.zmq_bridge_in, self.zmq_bridge_out, self._ident_number - 1)
-    
     def start(self):
         self._processd.start()
     @staticmethod  

@@ -19,12 +19,14 @@
 #	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 #Core Module
+from __future__ import print_function
 import logging
 from time import sleep, time
-import zmq
 
 #External Module
 from pymavlink import mavutil
+import zmq
+
 
 #Internal Module
 import  mavlinkplug.Message
@@ -175,7 +177,7 @@ class MAVlinkPlugFileWriter(MAVLinkPlugZmqBase):
     def _plug_2_file(self, p_msg):
         plug_msg = mavlinkplug.Message.MAVlinkPlugMessage(msg = p_msg)
         string_to_write = '{0} {1} {2} {3} {4}'.format(plug_msg.get_timestamp(), plug_msg.get_destination(), plug_msg.get_source(), plug_msg.get_type(), plug_msg.get_data())
-        print(string, file=self._file_descriptor)
+        print(string, file = self._file_descriptor)
     def stop(self):
         super(MAVlinkPlugFileWriter, self).stop()
         self._file_descriptor.close()

@@ -1,11 +1,11 @@
 if(__name__ == '__main__'):
     
-    
     import mavlinkplug.Module
     import mavlinkplug.Plug
     from time import sleep
     import logging
     
+    #Handling logging options
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
     handler = logging.StreamHandler()
@@ -13,6 +13,11 @@ if(__name__ == '__main__'):
     formatter = logging.Formatter("%(levelname)s - %(message)s")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
+    
+    #Creating plug
+    plug = mavlinkplug.Plug.Plug()
+    plug.start()
+    
     
     test = mavlinkplug.Module.MAVlinkPlugConnection(('tcp://127.0.0.1:45689','tcp://127.0.0.1:45688',123),'COM3',dialect='pixhawk')
     test.start()

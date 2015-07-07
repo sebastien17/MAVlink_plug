@@ -46,7 +46,7 @@ def in_thread(isDaemon = True):
 class MAVLinkPlugZmqBase(multiprocessing.Process):
     '''
     This is the base for all processes and offers utility functions
-    for setup and creating new streams.
+    for creating new streams.
     '''
     def __init__(self, zmq_context = None):
         super(MAVLinkPlugZmqBase,self).__init__()
@@ -59,7 +59,9 @@ class MAVLinkPlugZmqBase(multiprocessing.Process):
         if(self._zmq_context == None):
             self._zmq_context = zmq.Context()
         self._loop = ioloop.IOLoop.instance()
-    def stream(self, sock_type, addr, bind = True, callback=None, subscribe=self._default_subscribe):
+    def stream(self, sock_type, addr, bind = True, callback=None, subscribe=None):
+        if(subscribe == None):
+            subscribe = self._default_subscribe
         sock = self._zmq_context.socket(sock_type)
         if (sock_type == zmq.SUB):
             for opt in subscribe:
