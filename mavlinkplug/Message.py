@@ -25,6 +25,7 @@ from json import dumps
 #Internal import
 #For now just available for V1.0 Pixhawk Message
 import pymavlink.dialects.v10.pixhawk as mavlink
+from pymavlink.generator.mavcrc import x25crc
 from mavlinkplug.Exception import MAVlinkPlugException 
 
 
@@ -104,21 +105,23 @@ class PlugHeader(object):
             return self.__timestamp
     @timestamp.setter
     def timestamp(self, timestamp):
-        if(  not isinstance(timestamp, float) or timestamp < 0):
+        if(  not isinstance(timestamp, int) or timestamp < 0):
             raise MAVlinkPlugException('Invalid header timestamp set value: {0}'.format(timestamp))
         else:
             self.__timestamp = timestamp
     def extract(self, msg):
-        self.destination, self.source, self.type, self.timestamp, _msg_data = struct.unpack(self.__pack + 's',msg)
-        return _msg_data
+        self.destination, self.source, self.type, self.timestamp = struct.unpack(self.__pack ,msg[:self.size()])
+        return msg[self.size():]
     def pack(self):
         return struct.pack(self.__pack, self.__destination, self.__source, self.__type, self.__timestamp)
+    def size(self):
+        return struct.Struct(self.__pack).size
         
         
 class PlugMessage(object):
     def __init__(self, msg = None):
+        self.__header = PlugHeader()
         if(msg == None):
-            self.__header = PlugHeader()
             self.__data = None
         else:
              self.data = self.__header.extract(msg)

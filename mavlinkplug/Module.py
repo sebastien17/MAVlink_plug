@@ -73,12 +73,14 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
                 time_idle = None
                 logging.debug(msg)
                 self._in_msg += 1
+                
                 plug_message = mavlinkplug.Message.PlugMessage()
-                plug_message.set_header(destination = mavlinkplug.Message.MSG_PLUG_DEST_TYPE_ALL,
-                                        type = mavlinkplug.Message.MSG_PLUG_TYPE_MAV_MSG,
-                                        source = self._ident,
-                                        timestamp = msg._timestamp)
-                plug_message.set_data(msg.get_msgbuf())
+                plug_message.header.destination = mavlinkplug.Message.MSG_PLUG_DEST_TYPE_ALL
+                plug_message.header.type = mavlinkplug.Message.MSG_PLUG_TYPE_MAV_MSG
+                plug_message.header.source = self._ident
+                plug_message.header.timestamp = int(msg._timestamp + 1000)
+                plug_message.data = msg.get_msgbuf()
+                
                 logging.debug(plug_message.pack())
                 socket.send(plug_message.pack())
             else:
@@ -97,16 +99,16 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
         socket.setsockopt(zmq.SUBSCRIBE, mavlinkplug.Message.DEF_PACK(self._ident))
         socket.connect(self._zmq_sock_in)
         while(self._run):
-            _mavlinkplug_message = mavlinkplug.Message.MAVlinkPlugMessage(msg = socket.recv())
-            #Do not treat message from this module
-            if(_mavlinkplug_message.get_source() == self._ident):
+            _mavlinkplug_message = mavlinkplug.Message.PlugMessage(msg = socket.recv())
+            #Do not process message from this module
+            if(_mavlinkplug_message.source == self._ident):
                 continue
-            elif(_mavlinkplug_message.get_type() == mavlinkplug.Message.MSG_PLUG_TYPE_KILL):
+            elif(_mavlinkplug_message.type == mavlinkplug.Message.MSG_PLUG_TYPE_KILL):
                 self.stop()
-            elif(_mavlinkplug_message.get_type() == mavlinkplug.Message.MSG_PLUG_TYPE_MAV_MSG):
-                self.write(_mavlinkplug_message.get_data())
-            elif(_mavlinkplug_message.get_type() == mavlinkplug.Message.MSG_PLUG_TYPE_MAV_COMMAND):
-                self.mavlink_command(_mavlinkplug_message.get_data())
+            elif(_mavlinkplug_message.type == mavlinkplug.Message.MSG_PLUG_TYPE_MAV_MSG):
+                self.write(_mavlinkplug_message.data)
+            elif(_mavlinkplug_message.type == mavlinkplug.Message.MSG_PLUG_TYPE_MAV_COMMAND):
+                self.mavlink_command(_mavlinkplug_message.data)
     def mavlink_command(self, cmd):
         if(self._mavh == None):
             return False
