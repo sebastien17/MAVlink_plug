@@ -18,29 +18,54 @@
 #	along with MAVlinkplug.  If not, see <http://www.gnu.org/licenses/>.
 #	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+_LOG = True
+
 if(__name__ == '__main__'):
     
-    import mavlinkplug.Module
-    import mavlinkplug.Plug
+    #Core module
     from time import sleep
     import logging
     
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-    handler = logging.StreamHandler()
-    handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter("%(levelname)s - %(message)s")
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    #Internal module
+    import mavlinkplug.Module
+    import mavlinkplug.Plug
+    import mavlinkplug.QuadCopter
+    import mavlinkplug.Hil
+    
+    if(_LOG == True):
+        logger = logging.getLogger()
+        logger.setLevel(logging.DEBUG)
+        
+        c_handler = logging.StreamHandler()
+        f_handler = logging.FileHandler('mavlink.log',mode = 'r+')
+        c_handler.setLevel(logging.INFO)
+        f_handler.setLevel(logging.DEBUG)
+        
+        formatter = logging.Formatter('%(asctime)s - %(processName)s - %(threadName)s - %(levelname)s - %(message)s')
+        c_handler.setFormatter(formatter)
+        f_handler.setFormatter(formatter)
+        
+        logger.addHandler(c_handler)
+        logger.addHandler(f_handler)
     
     #Creating plug
     plug = mavlinkplug.Plug.Plug()
-    plug.start()
     
     #Creating Mavlink Connection 
     mavlink_con = mavlinkplug.Module.MAVlinkPlugConnection(plug.plug_info(),'2014-12-10 15-45-32.tlog')
-    mavlink_con.start()
     
-    sleep(10)
-    #mavlink_con.stop()
+    #Creating HIL environment
+    hil_env = mavlinkplug.Hil.MAVLinkPlugHil(plug.plug_info(), mavlink_con.ident(), mavlinkplug.QuadCopter.QuadCopter)
+    
+    plug.start()
+    mavlink_con.start()
+    hil_env.run()
+    hil_env.FL_initialize()
+    hil_env.hardware_initialize()
+    
+    plug.server_forever()
+    #sleep(5)
+    
+    hil_env.stop()
+    mavlink_con.stop()
     del(plug)

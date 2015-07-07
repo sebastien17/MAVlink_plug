@@ -83,7 +83,7 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
                 plug_message.header.timestamp = int(msg._timestamp + 1000)
                 plug_message.data = msg.get_msgbuf()
                 
-                logging.debug(plug_message.pack())
+                #logging.debug(plug_message.pack())
                 socket.send(plug_message.pack())
             else:
                 if(time_idle == None):
@@ -103,13 +103,13 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
         while(self._run):
             _mavlinkplug_message = mavlinkplug.Message.PlugMessage(msg = socket.recv())
             #Do not process message from this module
-            if(_mavlinkplug_message.source == self._ident):
+            if(_mavlinkplug_message.header.source == self._ident):
                 continue
-            elif(_mavlinkplug_message.type == mavlinkplug.Message.MSG_PLUG_TYPE_KILL):
+            elif(_mavlinkplug_message.header.type == mavlinkplug.Message.MSG_PLUG_TYPE_KILL):
                 self.stop()
-            elif(_mavlinkplug_message.type == mavlinkplug.Message.MSG_PLUG_TYPE_MAV_MSG):
+            elif(_mavlinkplug_message.header.type == mavlinkplug.Message.MSG_PLUG_TYPE_MAV_MSG):
                 self.write(_mavlinkplug_message.data)
-            elif(_mavlinkplug_message.type == mavlinkplug.Message.MSG_PLUG_TYPE_MAV_COMMAND):
+            elif(_mavlinkplug_message.header.type == mavlinkplug.Message.MSG_PLUG_TYPE_MAV_COMMAND):
                 self.mavlink_command(_mavlinkplug_message.data)
     def mavlink_command(self, cmd):
         if(self._mavh == None):

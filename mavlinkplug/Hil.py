@@ -29,7 +29,7 @@ import  mavlinkplug.Message
 
 
 class MAVLinkPlugHil(MAVLinkPlugZmqBase)
-    def __init__(self, module_info, Aircraft_Type_cls):
+    def __init__(self, module_info, mavlink_connection_ident, Aircraft_Type_cls):
         super(MAVLinkPlugHil, self).__init__()
         self._addr_to_plug, self._addr_from_plug, self._ident =  module_info
         self._addr_to_FL = 'tcp://127.0.0.1:45063'

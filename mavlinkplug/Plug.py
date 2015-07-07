@@ -18,11 +18,15 @@
 #	along with MAVlinkplug.  If not, see <http://www.gnu.org/licenses/>.
 #	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+#Core Module
 from __future__ import print_function
+import logging
+from time import sleep
 
+#External Module
 import zmq
 from zmq.devices import ProcessDevice
-from time import sleep
+
 
 class Plug(object):
     '''
@@ -52,14 +56,17 @@ class Plug(object):
         self._processd.bind_out(self.zmq_bridge_out)
         self._processd.setsockopt_in(zmq.SUBSCRIBE,b'')
         self._ident_number = 0
+        logging.info('Plug initialized')
         
     def plug_info(self):
         self._ident_number = self._ident_number + 1 
         return (self.zmq_bridge_in, self.zmq_bridge_out, self._ident_number - 1)
     def start(self):
+        logging.info('Plug starting')
         self._processd.start()
     @staticmethod  
     def server_forever():
+        logging.info('Plug server forever starting')
         while(True):
             try:
                 sleep(1)
