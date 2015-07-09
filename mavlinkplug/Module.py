@@ -88,9 +88,13 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
             else:
                 if(time_idle == None):
                     time_idle = time()
-                elif(time_idle + 5 < time()):
+                    log_front = 1.0
+                elif(time() - time_idle > 5.0):
                     self.try_connection()
-                logging.info('MAVlinkPlugConnection {0} connection idle for '.format(self._ident, time() - time_idle))
+                else:
+                    if(time() - time_idle > log_front):
+                        logging.info('MAVlinkPlugConnection {0} connection idle for {1:.2f}'.format(self._ident, time() - time_idle))
+                        log_front = log_front + 1.0
         del(plug_message)
         logging.info('MAVlinkPlugConnection {0} loop stop'.format(self._ident))
         socket.close()
@@ -132,9 +136,9 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
                 elif(cmd == 'WP_LIST_REQUEST'):
                     self._mavh.waypoint_request_list_send()
                     logging_string = 'Launch waypoint_request_list_send command'
-                elif(cmd == 'WP_REQUEST'):
-                    self._mavh.waypoint_request_send(param['seq'])
-                    logging_string = 'Launch waypoint_request_send({0}) command'.format(param['seq'])
+                #elif(cmd == 'WP_REQUEST'):
+                #    self._mavh.waypoint_request_send(param["seq"])
+                #    logging_string = 'Launch waypoint_request_send({0}) command'.format(param["seq"])
                 elif(cmd == 'SET_HIL_ARM'):
                     self._mavh.mav.command_long_send(self._mavh.target_system,
                             self._mavh.target_component,
@@ -176,8 +180,8 @@ class MAVlinkPlugFileWriter(MAVLinkPlugZmqBase):
         self._file_descriptor = open(self._file_name, 'w', 500)
     def _plug_2_file(self, p_msg):
         plug_msg = mavlinkplug.Message.MAVlinkPlugMessage(msg = p_msg)
-        string_to_write = '{0} {1} {2} {3} {4}'.format(plug_msg.get_timestamp(), plug_msg.get_destination(), plug_msg.get_source(), plug_msg.get_type(), plug_msg.get_data())
-        print(string, file = self._file_descriptor)
+        string_to_write = '{0} {1} {2} {3} {4}'.format(plug_msg.header.timestamp, plug_msg.header.destination, plug_msg.header.source, plug_msg.header.type, plug_msg.data)
+        print(string_to_write, file = self._file_descriptor)
     def stop(self):
         super(MAVlinkPlugFileWriter, self).stop()
         self._file_descriptor.close()

@@ -28,7 +28,7 @@ from mavlinkplug.Base import MAVLinkPlugZmqBase
 import  mavlinkplug.Message
 
 
-class MAVLinkPlugHil(MAVLinkPlugZmqBase)
+class MAVLinkPlugHil(MAVLinkPlugZmqBase):
     def __init__(self, module_info, mavlink_connection_ident, Aircraft_Type_cls):
         super(MAVLinkPlugHil, self).__init__()
         self._addr_to_plug, self._addr_from_plug, self._ident =  module_info
