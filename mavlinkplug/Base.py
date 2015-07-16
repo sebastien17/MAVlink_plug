@@ -18,14 +18,9 @@
 #	along with MAVlinkplug.  If not, see <http://www.gnu.org/licenses/>.
 #	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-#Core Module
 from __future__ import print_function
-
-#External Module
 from zmq.eventloop import ioloop, zmqstream
-import zmq, multiprocessing, threading
-
-#Internal Module
+import zmq, multiprocessing, threading, logging
 import mavlinkplug.Message
 
 
@@ -55,6 +50,7 @@ class MAVLinkPlugZmqBase(multiprocessing.Process):
         self.daemon = True
         self._ident = None
         self._default_subscribe = [mavlinkplug.Message.DEF_PACK(mavlinkplug.Message.MSG_PLUG_DEST_TYPE_ALL)]
+        logging.info('Initializing')
     def setup(self):
         if(self._zmq_context == None):
             self._zmq_context = zmq.Context()
@@ -75,11 +71,12 @@ class MAVLinkPlugZmqBase(multiprocessing.Process):
         if (callback):
             _stream.on_recv(callback)
         return _stream
-    def start(self):
+    def run(self):
         self.setup()
         self._loop.start()
     def stop(self):
-        self._loop.stop()
+        logging.info('Stopping')
+        self.terminate()
     def insert_ident(self, string):
         return self._name + ' {0} : '.format(self._ident)
 

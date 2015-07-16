@@ -29,8 +29,6 @@ from pyfdm.exchange import zmq_exchange
 from zmq import Context
 
 
-JSBSIM_DEFAULT_PATH = path.dirname(__file__)
-
 class QuadCopter(multiprocessing.Process):
     
     _data_in = [ 
@@ -57,7 +55,9 @@ class QuadCopter(multiprocessing.Process):
     ]
     
     JSBSIM_DEFAULT_PATH = path.dirname(__file__) + sep + 'data' + sep
-    
+    MIN_SERVO_PPM = 950
+    MAX_SERVO_PPM = 1800
+
     def __init__(self, zmq_context = None, zmq_in = None, zmq_out = None, daemon = True, lat = 0, long = 0, terrain_elev_ft = 0, h_agl_ft = 1, fdm_model = 'arducopter', jsbsim_root = None, dt = 1.0/100):
         super(QuadCopter,self).__init__()
         self._zmq_context = zmq_context
@@ -97,11 +97,14 @@ class QuadCopter(multiprocessing.Process):
         self.terminate()
     @classmethod
     def mav_2_FL(cls, mavlink_msg):
+        def norm(value):
+            return (value - cls.MIN_SERVO_PPM)/(cls.MAX_SERVO_PPM - cls.MIN_SERVO_PPM)
         if(mavlink_msg.get_type() == 'SERVO_OUTPUT_RAW'):
-            return (mavlink_msg.__dict__['servo1_raw'],
-                    mavlink_msg.__dict__['servo2_raw'],
-                    mavlink_msg.__dict__['servo3_raw'],
-                    mavlink_msg.__dict__['servo4_raw']
+            return (
+                    norm(float(mavlink_msg.__dict__['servo1_raw'])),
+                    norm(float(mavlink_msg.__dict__['servo2_raw'])),
+                    norm(float(mavlink_msg.__dict__['servo3_raw'])),
+                    norm(float(mavlink_msg.__dict__['servo4_raw']))
                     )
         return None
     @classmethod

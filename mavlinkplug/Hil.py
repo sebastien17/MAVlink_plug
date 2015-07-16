@@ -20,7 +20,7 @@
 
 #Core Module
 from __future__ import print_function
-import zmq
+import zmq, logging
 from time import sleep
 
 #Internal Module
@@ -57,6 +57,7 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         #TODO : add check
         pass
     def FL_initialize(self):
+        logging.info('Initializing Flight Loop')
         aircraft = self._Aircraft_Type_cls(zmq_in = self._addr_to_FL, zmq_out = self._addr_from_FL)
         aircraft.start()
     def _plug_2_FL(self, msg):
@@ -66,9 +67,12 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         if(mavlinkplug_message.header.type == mavlinkplug.Message.MSG_PLUG_TYPE_MAV_MSG):
             data_2_FL = self._Aircraft_Type_cls.mav_2_FL(mavlinkplug_message.data)
             if(data_2_FL != None):
+                #Stringify
+                data_2_FL = map(str,data_2_FL)
                 msg_2_FL = ' '.join(data_2_FL)
-                self._stream_to_FL(msg_2_FL)
-        del(_mavlinkplug_message)
+                #Send to Flight Loop
+                self._stream_to_FL.send(msg_2_FL)
+        del(mavlinkplug_message)
     def _FL_2_plug(self, msg):
         _msg = msg[0]
         data_2_plug = self._Aircraft_Type_cls.FL_2_mav(_msg)

@@ -66,10 +66,10 @@ class Plug(object):
         self._processd.start()
     @staticmethod  
     def server_forever():
-        logging.info('Plug server forever starting')
+        logging.info('Serving forever !!!')
         while(True):
             try:
                 sleep(1)
             except(KeyboardInterrupt, SystemExit):
-                print('Closing Plug')
+                logging.info('Closing Plug')
                 break

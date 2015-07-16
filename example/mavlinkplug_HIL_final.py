@@ -41,7 +41,7 @@ if(__name__ == '__main__'):
         c_handler.setLevel(logging.INFO)
         f_handler.setLevel(logging.DEBUG)
         
-        formatter = logging.Formatter('%(asctime)s - %(processName)s - %(threadName)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter('%(asctime)s %(process)d %(thread)d %(module)s %(funcName)s %(levelname)s - %(message)s')
         c_handler.setFormatter(formatter)
         f_handler.setFormatter(formatter)
         
@@ -57,15 +57,16 @@ if(__name__ == '__main__'):
     #Creating HIL environment
     hil_env = mavlinkplug.Hil.MAVLinkPlugHil(plug.plug_info(), mavlink_con.ident(), mavlinkplug.QuadCopter.QuadCopter)
     
-    plug.start()
-    mavlink_con.start()
-    hil_env.start()
-    #hil_env.FL_initialize()
-    #hil_env.hardware_initialize()
-    
-    plug.server_forever()
+    plug.start() #Plug start
+    mavlink_con.start() #Mavlink connection start
+
+    hil_env.start() #
+    hil_env.FL_initialize() #Flight loop start
+    #hil_env.hardware_initialize() #MAV start
+    plug.server_forever() #Wait forever
     #sleep(5)
     
-   # hil_env.stop()
+    #Cleaning
+    hil_env.stop()
     mavlink_con.stop()
-    del(plug)
+    # del(plug)

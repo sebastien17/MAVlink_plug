@@ -18,13 +18,11 @@
 #	along with MAVlinkplug.  If not, see <http://www.gnu.org/licenses/>.
 #	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-#Core import
 import struct
 from json import dumps
-
-#Internal import
 #For now just available for V1.0 Pixhawk Message
-import pymavlink.dialects.v10.pixhawk as mavlink
+import pymavlink.dialects.v10.ardupilotmega as mavlink
+#import pymavlink.dialects.v10.pixhawk as mavlink
 from pymavlink.generator.mavcrc import x25crc
 from mavlinkplug.Exception import MAVlinkPlugException 
 
