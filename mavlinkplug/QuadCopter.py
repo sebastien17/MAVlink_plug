@@ -18,14 +18,16 @@
 #	along with MAVlinkplug.  If not, see <http://www.gnu.org/licenses/>.
 #	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+#Core import
 from __future__ import print_function
-
-import multiprocessing
+import multiprocessing, logging
+from json import loads
+from os import path, sep
+#External import
 from pyfdm import fdmexec
 from pyfdm.exchange import zmq_exchange
 from zmq import Context
-from json import loads
-from os import path, sep
+
 
 JSBSIM_DEFAULT_PATH = path.dirname(__file__)
 
@@ -94,17 +96,14 @@ class QuadCopter(multiprocessing.Process):
     def stop(self):
         self.terminate()
     @classmethod
-    def mav_2_FL(cls, string):
-        topic, _timestamp, messagedata = string.split(" ",2)
-        data = loads(messagedata)
-        if('SERVO_OUTPUT_RAW' in data):
-            return (data['SERVO_OUTPUT_RAW']['servo1_raw'],
-                    data['SERVO_OUTPUT_RAW']['servo2_raw'],
-                    data['SERVO_OUTPUT_RAW']['servo3_raw'],
-                    data['SERVO_OUTPUT_RAW']['servo4_raw']
+    def mav_2_FL(cls, mavlink_msg):
+        if(mavlink_msg.get_type() == 'SERVO_OUTPUT_RAW'):
+            return (mavlink_msg.__dict__['servo1_raw'],
+                    mavlink_msg.__dict__['servo2_raw'],
+                    mavlink_msg.__dict__['servo3_raw'],
+                    mavlink_msg.__dict__['servo4_raw']
                     )
-        else:
-            return None
+        return None
     @classmethod
     def FL_2_mav(cls, string):
         _temp = []

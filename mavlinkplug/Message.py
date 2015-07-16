@@ -146,7 +146,6 @@ class PlugMessage(object):
     def pack(self):
         return self.__header.pack() + self.__data
         
-        
 class MAVlinkPlugMessage(PlugMessage):
     @property
     def data(self):
@@ -177,7 +176,6 @@ class MAVlinkPlugMessage(PlugMessage):
         '''
         Decode a buffer as a MAVLink message
         '''
-        # decode the header
         try:
             magic, mlen, seq, srcSystem, srcComponent, msgId = struct.unpack('cBBBBB', msgbuf[:6])
         except struct.error as emsg:
@@ -186,7 +184,6 @@ class MAVlinkPlugMessage(PlugMessage):
             raise MAVlinkPlugException("invalid MAVLink prefix '%s'" % magic)
         if mlen != len(msgbuf)-8:
             raise MAVlinkPlugException('invalid MAVLink message length. Got %u expected %u, msgId=%u' % (len(msgbuf)-8, mlen, msgId))
-
         if not msgId in mavlink.mavlink_map:
             raise MAVlinkPlugException('unknown MAVLink message ID %u' % msgId)
 

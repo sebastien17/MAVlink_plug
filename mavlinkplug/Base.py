@@ -54,7 +54,7 @@ class MAVLinkPlugZmqBase(multiprocessing.Process):
         self._loop = None
         self.daemon = True
         self._ident = None
-        self._default_subscribe = [mavlinkplug.Message.DEF_PACK(mavlinkplug.Message.MSG_PLUG_DEST_TYPE_ALL), mavlinkplug.Message.DEF_PACK(self._ident)]
+        self._default_subscribe = [mavlinkplug.Message.DEF_PACK(mavlinkplug.Message.MSG_PLUG_DEST_TYPE_ALL)]
     def setup(self):
         if(self._zmq_context == None):
             self._zmq_context = zmq.Context()
@@ -75,7 +75,7 @@ class MAVLinkPlugZmqBase(multiprocessing.Process):
         if (callback):
             _stream.on_recv(callback)
         return _stream
-    def run(self):
+    def start(self):
         self.setup()
         self._loop.start()
     def stop(self):

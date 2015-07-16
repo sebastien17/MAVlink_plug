@@ -115,6 +115,7 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
                 self.write(_mavlinkplug_message.data)
             elif(_mavlinkplug_message.header.type == mavlinkplug.Message.MSG_PLUG_TYPE_MAV_COMMAND):
                 self.mavlink_command(_mavlinkplug_message.data)
+            del(_mavlinkplug_message)
     def mavlink_command(self, cmd):
         if(self._mavh == None):
             return False
@@ -173,6 +174,7 @@ class MAVlinkPlugFileWriter(MAVLinkPlugZmqBase):
         self._file_name = file
         self._file_descriptor = None
         self.daemon = True
+        self._default_subscribe.append(mavlinkplug.Message.DEF_PACK(self._ident))
     def setup(self):
         super(MAVlinkPlugFileWriter,self).setup()
         #Define stream listening from plug

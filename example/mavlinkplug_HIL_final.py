@@ -29,7 +29,7 @@ if(__name__ == '__main__'):
     #Internal module
     import mavlinkplug.Module
     import mavlinkplug.Plug
-    #import mavlinkplug.QuadCopter
+    import mavlinkplug.QuadCopter
     import mavlinkplug.Hil
     
     if(_LOG == True):
@@ -55,11 +55,11 @@ if(__name__ == '__main__'):
     mavlink_con = mavlinkplug.Module.MAVlinkPlugConnection(plug.plug_info(),'2014-12-10 15-45-32.tlog')
     
     #Creating HIL environment
-    #hil_env = mavlinkplug.Hil.MAVLinkPlugHil(plug.plug_info(), mavlink_con.ident(), mavlinkplug.QuadCopter.QuadCopter)
+    hil_env = mavlinkplug.Hil.MAVLinkPlugHil(plug.plug_info(), mavlink_con.ident(), mavlinkplug.QuadCopter.QuadCopter)
     
     plug.start()
     mavlink_con.start()
-    #hil_env.run()
+    hil_env.start()
     #hil_env.FL_initialize()
     #hil_env.hardware_initialize()
     

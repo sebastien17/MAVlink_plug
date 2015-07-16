@@ -36,6 +36,7 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         self._addr_from_FL = 'tcp://127.0.0.1:45064'
         self._Aircraft_Type_cls = Aircraft_Type_cls
         self.daemon = True
+        self._default_subscribe.append(mavlinkplug.Message.DEF_PACK(self._ident))
     def setup(self):
         super(MAVLinkPlugHil,self).setup()
         #Define stream listening from plug
@@ -59,11 +60,15 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         aircraft = self._Aircraft_Type_cls(zmq_in = self._addr_to_FL, zmq_out = self._addr_from_FL)
         aircraft.start()
     def _plug_2_FL(self, msg):
+        #get the first (and only) part of the message
         _msg = msg[0]
-        data_2_FL = self.Aircraft_Type_cls.mav_2_FL(_msg)
-        if(data_2_FL != None):
-            msg_2_FL = ' '.join(data_2_FL)
-            self._stream_to_FL(msg_2_FL)
+        mavlinkplug_message = mavlinkplug.Message.MAVlinkPlugMessage(_msg)
+        if(mavlinkplug_message.header.type == mavlinkplug.Message.MSG_PLUG_TYPE_MAV_MSG):
+            data_2_FL = self._Aircraft_Type_cls.mav_2_FL(mavlinkplug_message.data)
+            if(data_2_FL != None):
+                msg_2_FL = ' '.join(data_2_FL)
+                self._stream_to_FL(msg_2_FL)
+        del(_mavlinkplug_message)
     def _FL_2_plug(self, msg):
         _msg = msg[0]
-        data_2_plug = self.Aircraft_Type_cls.FL_2_mav(_msg)
+        data_2_plug = self._Aircraft_Type_cls.FL_2_mav(_msg)
