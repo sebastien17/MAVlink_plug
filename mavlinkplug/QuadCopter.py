@@ -23,7 +23,6 @@ from __future__ import print_function
 import multiprocessing, logging
 from json import loads
 from os import path, sep
-#External import
 from pyfdm import fdmexec
 from pyfdm.exchange import zmq_exchange
 from zmq import Context
@@ -97,6 +96,12 @@ class QuadCopter(multiprocessing.Process):
         self.terminate()
     @classmethod
     def mav_2_FL(cls, mavlink_msg):
+        '''
+        Adapting parameters from SERVO_OUTPUT_RAW type MAVlink message to FL (JSBsim)
+        Class method for multiprocess purpose
+        :param mavlink_msg: mavlink message
+        :return: tuples including servo raw values or None if message not
+        '''
         def norm(value):
             return (value - cls.MIN_SERVO_PPM)/(cls.MAX_SERVO_PPM - cls.MIN_SERVO_PPM)
         if(mavlink_msg.get_type() == 'SERVO_OUTPUT_RAW'):
@@ -109,11 +114,11 @@ class QuadCopter(multiprocessing.Process):
         return None
     @classmethod
     def FL_2_mav(cls, string):
-        _temp = []
+        '''
+        :param string: ZMQ message string including  _data_out values (Human Readable)
+        :return: mavlink message to send
+        '''
         _messagedata = string.split(" ")
         #TODO : Data treatment
         _temp = _messagedata
         return _temp
-        
-        return _temp
-

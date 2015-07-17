@@ -20,7 +20,7 @@
 
 import struct
 from json import dumps
-#For now just available for V1.0 Pixhawk Message
+#For now just available for V1.0 Ardupilot  Message
 import pymavlink.dialects.v10.ardupilotmega as mavlink
 #import pymavlink.dialects.v10.pixhawk as mavlink
 from pymavlink.generator.mavcrc import x25crc
@@ -65,7 +65,6 @@ class PlugHeader(object):
             raise MAVlinkPlugException('Invalid header destination set value: {0}'.format(destination))
         else:
             self.__destination = destination
-    
     #Source property
     @property
     def source(self):
@@ -93,7 +92,6 @@ class PlugHeader(object):
             raise MAVlinkPlugException('Invalid header type set value: {0}'.format(type))
         else:
             self.__type = type
-            
     #Timestamp property
     @property
     def timestamp(self):

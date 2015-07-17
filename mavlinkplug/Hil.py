@@ -18,12 +18,9 @@
 #	along with MAVlinkplug.  If not, see <http://www.gnu.org/licenses/>.
 #	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-#Core Module
 from __future__ import print_function
 import zmq, logging
 from time import sleep
-
-#Internal Module
 from mavlinkplug.Base import MAVLinkPlugZmqBase
 import  mavlinkplug.Message
 
@@ -61,8 +58,13 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         aircraft = self._Aircraft_Type_cls(zmq_in = self._addr_to_FL, zmq_out = self._addr_from_FL)
         aircraft.start()
     def _plug_2_FL(self, msg):
-        #get the first (and only) part of the message
-        _msg = msg[0]
+        '''
+        Get message from plug and pass it to FL
+        Call a class method from _Aircraft_Type_cls to adapt the message to send
+        :param msg: mavlink plug message from plug
+        :return: Nothing
+        '''
+        _msg = msg[0] #get the first (and only) part of the message
         mavlinkplug_message = mavlinkplug.Message.MAVlinkPlugMessage(_msg)
         if(mavlinkplug_message.header.type == mavlinkplug.Message.MSG_PLUG_TYPE_MAV_MSG):
             data_2_FL = self._Aircraft_Type_cls.mav_2_FL(mavlinkplug_message.data)
@@ -74,5 +76,32 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
                 self._stream_to_FL.send(msg_2_FL)
         del(mavlinkplug_message)
     def _FL_2_plug(self, msg):
-        _msg = msg[0]
+        '''
+        Get message from FL and pass it to plug
+        Call a class method from _Aircraft_Type_cls to adapt the message to send
+        :param msg: ZMQ message from FL
+        :return: Nothing
+        '''
+        _msg = msg[0] #get the first (and only) part of the message
         data_2_plug = self._Aircraft_Type_cls.FL_2_mav(_msg)
+
+        #data_2_plug format :
+        #    _data_out = [
+        #        #for HIL_GPS
+        #        'position/lat-gc-rad',
+        #        'position/long-gc-rad',
+        #        'position/h-sl-ft',
+        #        #for HIL_SENSOR
+        #        #Need magnetic field composant
+        #        'accelerations/udot-ft_sec2',
+        #        'accelerations/vdot-ft_sec2',
+        #        'accelerations/wdot-ft_sec2',
+        #        'velocities/p-aero-rad_sec',
+        #        'velocities/q-aero-rad_sec',
+        #        'velocities/r-aero-rad_sec',
+        #        'atmosphere/pressure-altitude',
+        #        ]
+
+
+        #mav ?
+        #mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_sensor_message().pack()
