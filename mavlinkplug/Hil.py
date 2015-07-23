@@ -20,7 +20,7 @@
 
 from __future__ import print_function
 import zmq, logging
-from time import sleep
+from time import sleep, time
 from mavlinkplug.Base import MAVLinkPlugZmqBase
 import  mavlinkplug.Message
 
@@ -28,12 +28,14 @@ import  mavlinkplug.Message
 class MAVLinkPlugHil(MAVLinkPlugZmqBase):
     def __init__(self, module_info, mavlink_connection_ident, Aircraft_Type_cls):
         super(MAVLinkPlugHil, self).__init__()
+        self._mavlink_connection_ident = mavlink_connection_ident
         self._addr_to_plug, self._addr_from_plug, self._ident =  module_info
         self._addr_to_FL = 'tcp://127.0.0.1:45063'
         self._addr_from_FL = 'tcp://127.0.0.1:45064'
         self._Aircraft_Type_cls = Aircraft_Type_cls
         self.daemon = True
         self._default_subscribe.append(mavlinkplug.Message.DEF_PACK(self._ident))
+        self._dumb_header = mavlinkplug.Message.mavlink.MAVLink_header()
     def setup(self):
         super(MAVLinkPlugHil,self).setup()
         #Define stream listening from plug
@@ -86,22 +88,44 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         data_2_plug = self._Aircraft_Type_cls.FL_2_mav(_msg)
 
         #data_2_plug format :
-        #    _data_out = [
+        #        [
         #        #for HIL_GPS
-        #        'position/lat-gc-rad',
-        #        'position/long-gc-rad',
-        #        'position/h-sl-ft',
+        # 0       'position/lat-gc-rad',
+        # 1       'position/long-gc-rad',
+        # 2       'position/h-sl-ft',
         #        #for HIL_SENSOR
         #        #Need magnetic field composant
-        #        'accelerations/udot-ft_sec2',
-        #        'accelerations/vdot-ft_sec2',
-        #        'accelerations/wdot-ft_sec2',
-        #        'velocities/p-aero-rad_sec',
-        #        'velocities/q-aero-rad_sec',
-        #        'velocities/r-aero-rad_sec',
-        #        'atmosphere/pressure-altitude',
+        # 3       'accelerations/udot-ft_sec2',
+        # 4       'accelerations/vdot-ft_sec2',
+        # 5       'accelerations/wdot-ft_sec2',
+        # 6       'velocities/p-aero-rad_sec',
+        # 7       'velocities/q-aero-rad_sec',
+        # 8       'velocities/r-aero-rad_sec',
+        # 9       'atmosphere/pressure-altitude',
         #        ]
 
+        _mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_sensor_message(0,                 #time_usec
+                                                                             data_2_plug[3],    #xacc
+                                                                             data_2_plug[4],    #yacc
+                                                                             data_2_plug[5],    #zacc
+                                                                             data_2_plug[6],    #xgyro
+                                                                             data_2_plug[7],    #ygyro
+                                                                             data_2_plug[8],    #zgyro
+                                                                             0,                 #xmag
+                                                                             0,                 #ymag
+                                                                             0,                 #zmag
+                                                                             0,                 #abs_pressure
+                                                                             0,                 #diff_pressure
+                                                                             data_2_plug[9],    #pressure_alt
+                                                                             0,                 #temperature
+                                                                             0                  #fields_updated
+                                                                             ).pack(self._dumb_header)
 
-        #mav ?
-        #mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_sensor_message().pack()
+
+        _mavlink_plug_message = mavlinkplug.Message.MAVlinkPlugMessage(_mav_message)
+        _mavlink_plug_message.header.destination = self._mavlink_connection_ident
+        _mavlink_plug_message.header.source = self._ident
+        _mavlink_plug_message.header.type = mavlinkplug.Message.MSG_PLUG_TYPE_MAV_MSG
+        _mavlink_plug_message.header.timestamp = time()
+        self._stream_to_plug(_mavlink_plug_message.pack())
+        del(_mavlink_plug_message)
