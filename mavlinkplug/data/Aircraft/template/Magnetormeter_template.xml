@@ -1,0 +1,31 @@
+<system name="Navigation Sensors">
+        <channel name="Magnetometer">
+            <magnetometer name="sensors/magnetometer/X">
+                <output>sensors/magnetometer/X/output</output>
+                <axis> X </axis>
+                <location unit="FT">
+                    <x> 0 </x>
+                    <y> 0 </y>
+                    <z> 0 </z>
+                </location>
+            </magnetometer>
+            <magnetometer name="sensors/magnetometer/Y">
+                <output>sensors/magnetometer/Y/output</output>
+                <axis> Y </axis>
+                <location unit="FT">
+                    <x> 0 </x>
+                    <y> 0 </y>
+                    <z> 0 </z>
+                </location>
+            </magnetometer>
+            <magnetometer name="sensors/magnetometer/Z">
+                <output>sensors/magnetometer/Z/output</output>
+                <axis> Z </axis>
+                <location unit="FT">
+                    <x> 0 </x>
+                    <y> 0 </y>
+                    <z> 0 </z>
+                </location>
+            </magnetometer>
+        </channel>
+    </system>

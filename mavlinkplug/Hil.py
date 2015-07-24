@@ -85,47 +85,19 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         :return: Nothing
         '''
         _msg = msg[0] #get the first (and only) part of the message
-        data_2_plug = self._Aircraft_Type_cls.FL_2_mav(_msg)
+        _data_2_plug = self._Aircraft_Type_cls.FL_2_mav(_msg)
 
-        #data_2_plug format :
-        #        [
-        #        #for HIL_GPS
-        # 0       'position/lat-gc-rad',
-        # 1       'position/long-gc-rad',
-        # 2       'position/h-sl-ft',
-        #        #for HIL_SENSOR
-        #        #Need magnetic field composant
-        # 3       'accelerations/udot-ft_sec2',
-        # 4       'accelerations/vdot-ft_sec2',
-        # 5       'accelerations/wdot-ft_sec2',
-        # 6       'velocities/p-aero-rad_sec',
-        # 7       'velocities/q-aero-rad_sec',
-        # 8       'velocities/r-aero-rad_sec',
-        # 9       'atmosphere/pressure-altitude',
-        #        ]
+        #Mavlink Message Creation
+        _mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_sensor_message(_data_2_plug).pack(self._dumb_header)
 
-        _mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_sensor_message(0,                 #time_usec
-                                                                             data_2_plug[3],    #xacc
-                                                                             data_2_plug[4],    #yacc
-                                                                             data_2_plug[5],    #zacc
-                                                                             data_2_plug[6],    #xgyro
-                                                                             data_2_plug[7],    #ygyro
-                                                                             data_2_plug[8],    #zgyro
-                                                                             0,                 #xmag
-                                                                             0,                 #ymag
-                                                                             0,                 #zmag
-                                                                             0,                 #abs_pressure
-                                                                             0,                 #diff_pressure
-                                                                             data_2_plug[9],    #pressure_alt
-                                                                             0,                 #temperature
-                                                                             0                  #fields_updated
-                                                                             ).pack(self._dumb_header)
-
-
+        #MavlinkPlug Message Creation
         _mavlink_plug_message = mavlinkplug.Message.MAVlinkPlugMessage(_mav_message)
         _mavlink_plug_message.header.destination = self._mavlink_connection_ident
         _mavlink_plug_message.header.source = self._ident
         _mavlink_plug_message.header.type = mavlinkplug.Message.MSG_PLUG_TYPE_MAV_MSG
         _mavlink_plug_message.header.timestamp = time()
+
+        #Sending MavlinkPLug Message
         self._stream_to_plug(_mavlink_plug_message.pack())
+
         del(_mavlink_plug_message)

@@ -26,6 +26,7 @@ from os import path, sep
 from pyfdm import fdmexec
 from pyfdm.exchange import zmq_exchange
 from zmq import Context
+from time import time
 
 
 class QuadCopter(multiprocessing.Process):
@@ -51,6 +52,10 @@ class QuadCopter(multiprocessing.Process):
     'velocities/q-aero-rad_sec',
     'velocities/r-aero-rad_sec',
     'atmosphere/pressure-altitude',
+    'attitude/heading-true-rad',
+    'sensors/magnetometer/X/output',
+    'sensors/magnetometer/Y/output',
+    'sensors/magnetometer/Z/output'
     ]
     
     JSBSIM_DEFAULT_PATH = path.dirname(__file__) + sep + 'data' + sep
@@ -95,6 +100,14 @@ class QuadCopter(multiprocessing.Process):
     def stop(self):
         self.terminate()
     @classmethod
+    def servo_norm(cls, value):
+        '''
+        Normalize servo output data
+        :param value: raw value of servo output
+        :return:    normalized value of servo output
+        '''
+        return (value - cls.MIN_SERVO_PPM)/(cls.MAX_SERVO_PPM - cls.MIN_SERVO_PPM)
+    @classmethod
     def mav_2_FL(cls, mavlink_msg):
         '''
         Adapting parameters from SERVO_OUTPUT_RAW type MAVlink message to FL (JSBsim)
@@ -102,14 +115,13 @@ class QuadCopter(multiprocessing.Process):
         :param mavlink_msg: mavlink message
         :return: tuples including servo raw values or None if message not
         '''
-        def norm(value):
-            return (value - cls.MIN_SERVO_PPM)/(cls.MAX_SERVO_PPM - cls.MIN_SERVO_PPM)
+
         if(mavlink_msg.get_type() == 'SERVO_OUTPUT_RAW'):
             return (
-                    norm(float(mavlink_msg.__dict__['servo1_raw'])),
-                    norm(float(mavlink_msg.__dict__['servo2_raw'])),
-                    norm(float(mavlink_msg.__dict__['servo3_raw'])),
-                    norm(float(mavlink_msg.__dict__['servo4_raw']))
+                    cls.servo_norm(float(mavlink_msg.__dict__['servo1_raw'])),
+                    cls.servo_norm(float(mavlink_msg.__dict__['servo2_raw'])),
+                    cls.servo_norm(float(mavlink_msg.__dict__['servo3_raw'])),
+                    cls.servo_norm(float(mavlink_msg.__dict__['servo4_raw']))
                     )
         return None
     @classmethod
@@ -118,7 +130,46 @@ class QuadCopter(multiprocessing.Process):
         :param string: ZMQ message string including  _data_out values (Human Readable)
         :return: mavlink message to send
         '''
-        _messagedata = string.split(" ")
-        #TODO : Data treatment
-        _temp = _messagedata
-        return _temp
+                #data_2_plug format :
+        #        [
+        #        #for HIL_GPS
+        # 0       'position/lat-gc-rad',
+        # 1       'position/long-gc-rad',
+        # 2       'position/h-sl-ft',
+        #        #for HIL_SENSOR
+        #        #Need magnetic field composant
+        # 3       'accelerations/udot-ft_sec2',
+        # 4       'accelerations/vdot-ft_sec2',
+        # 5       'accelerations/wdot-ft_sec2',
+        # 6       'velocities/p-aero-rad_sec',
+        # 7       'velocities/q-aero-rad_sec',
+        # 8       'velocities/r-aero-rad_sec',
+        # 9       'atmosphere/pressure-altitude',
+        # 10      'attitude/heading-true-rad',
+        # 11      'sensors/magnetometer/X/output',
+        # 12      'sensors/magnetometer/Y/output',
+        # 13      'sensors/magnetometer/Z/output'
+        #        ]
+
+        _temp = string.split(" ")
+
+        #Data treatment
+        _messagedata  = [
+                            int(time()*1000000),    #time_usec
+                            float(_temp[3]),               #xacc
+                            float(_temp[4]),               #yacc
+                            float(_temp[5]),               #zacc
+                            float(_temp[6]),               #xgyro
+                            float(_temp[7]),               #ygyro
+                            float(_temp[8]),               #zgyro
+                            float(_temp[11]),              #xmag
+                            float(_temp[12]),              #ymag
+                            float(_temp[13]),              #zmag
+                            0,                      #abs_pressure
+                            0,                      #diff_pressure
+                            float(_temp[9]),               #pressure_alt
+                            0,                      #temperature
+                            0                       #fields_updated
+                       ]
+
+        return _messagedata

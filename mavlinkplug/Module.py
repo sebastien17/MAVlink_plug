@@ -80,7 +80,7 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
                 plug_message.header.destination = mavlinkplug.Message.MSG_PLUG_DEST_TYPE_ALL
                 plug_message.header.type = mavlinkplug.Message.MSG_PLUG_TYPE_MAV_MSG
                 plug_message.header.source = self._ident
-                plug_message.header.timestamp = int(msg._timestamp + 1000)
+                plug_message.header.timestamp = int(msg._timestamp * 1000)
                 plug_message.data = msg.get_msgbuf()
                 
                 #logging.debug(plug_message.pack())

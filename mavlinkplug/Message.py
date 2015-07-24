@@ -78,7 +78,6 @@ class PlugHeader(object):
             raise MAVlinkPlugException('Invalid header source set value: {0}'.format(source))
         else:
             self.__source = source
-    
     #Type property
     @property
     def type(self):
