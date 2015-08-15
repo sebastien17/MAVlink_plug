@@ -48,12 +48,13 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
 
     def try_connection(self):
         self._mavh = None
-        logging.info('MAVlinkPlugConnection {0} connection initialising'.format(self._ident))
+        logging.info('MAVlinkPlugConnection {0} connection initializing'.format(self._ident))
         while(self._run):
             try:
                 self._mavh = mavutil.mavlink_connection(*self._argv,**self._kwargs)
-            except:
+            except Exception as e:
                 self._mavh = None
+                #print(e)
                 sleep(1)                                #Wait 1 second until next try
             else:
                 break
@@ -70,31 +71,41 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
         plug_message = mavlinkplug.Message.PlugMessage()
         time_idle = None
         while(self._run):
-            msg = self._mavh.recv_msg()                        #Blocking TBC
-            if msg is not None:
-                time_idle = None
-                logging.debug(msg)
-                self._in_msg += 1
-                
-                plug_message = mavlinkplug.Message.PlugMessage()
-                plug_message.header.destination = mavlinkplug.Message.MSG_PLUG_DEST_TYPE_ALL
-                plug_message.header.type = mavlinkplug.Message.MSG_PLUG_TYPE_MAV_MSG
-                plug_message.header.source = self._ident
-                plug_message.header.timestamp = int(msg._timestamp * 1000)
-                plug_message.data = msg.get_msgbuf()
-                
-                #logging.debug(plug_message.pack())
-                socket.send(plug_message.pack())
+            try:
+                msg = self._mavh.recv_msg()
+            except :
+                logging.info('MAVlinkPlugConnection {0} reinitializing connection (error)'.format(self._ident))
+                self._mavh.close()
+                self.try_connection()
             else:
-                if(time_idle == None):
-                    time_idle = time()
-                    log_front = 1.0
-                elif(time() - time_idle > 5.0):
-                    self.try_connection()
+                if msg is not None:
+                    time_idle = None
+                    logging.debug(msg)
+                    self._in_msg += 1
+
+                    plug_message = mavlinkplug.Message.PlugMessage()
+                    plug_message.header.destination = mavlinkplug.Message.MSG_PLUG_DEST_TYPE_ALL
+                    plug_message.header.type = mavlinkplug.Message.MSG_PLUG_TYPE_MAV_MSG
+                    plug_message.header.source = self._ident
+                    plug_message.header.timestamp = 1
+                    #plug_message.header.timestamp = int(msg._timestamp * 1000)
+                    plug_message.data = msg.get_msgbuf()
+
+                    #logging.debug(plug_message.pack())
+                    socket.send(plug_message.pack())
                 else:
-                    if(time() - time_idle > log_front):
-                        logging.info('MAVlinkPlugConnection {0} connection idle for {1:.2f}'.format(self._ident, time() - time_idle))
-                        log_front = log_front + 1.0
+                    if(time_idle == None):
+                        time_idle = time()
+                        log_front = 1.0
+                    elif(time() - time_idle > 5.0):
+                        logging.info('MAVlinkPlugConnection {0} reinitializing connection (idle)'.format(self._ident))
+                        self._mavh.close()
+                        self.try_connection()
+                        time_idle = None
+                    else:
+                        if(time() - time_idle > log_front):
+                            logging.info('MAVlinkPlugConnection {0} connection idle for {1:.2f}'.format(self._ident, time() - time_idle))
+                            log_front = log_front + 1.0
         del(plug_message)
         logging.info('MAVlinkPlugConnection {0} loop stop'.format(self._ident))
         socket.close()

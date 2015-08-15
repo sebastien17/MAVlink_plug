@@ -99,11 +99,11 @@ class PlugHeader(object):
         else:
             return self.__timestamp
     @timestamp.setter
-    def timestamp(self, timestamp):
-        if(  not isinstance(timestamp, int) or timestamp < 0):
-            raise MAVlinkPlugException('Invalid header timestamp set value: {0}'.format(timestamp))
+    def timestamp(self, _timestamp):
+        if( not isinstance(_timestamp, int) or _timestamp < 0):
+            raise MAVlinkPlugException('Invalid header timestamp set value: {0}'.format(_timestamp))
         else:
-            self.__timestamp = timestamp
+            self.__timestamp = _timestamp
     def extract(self, msg):
         self.destination, self.source, self.type, self.timestamp = struct.unpack(self.__pack ,msg[:self.size()])
         return msg[self.size():]
