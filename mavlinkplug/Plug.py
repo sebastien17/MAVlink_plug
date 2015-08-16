@@ -58,8 +58,9 @@ class Plug(object):
         self._ident_number = 0
         logging.info('Plug initialized')
         
-    def plug_info(self):
-        self._ident_number = self._ident_number + 1 
+    def plug_info(self, increment = True):
+        if(increment):
+            self._ident_number = self._ident_number + 1
         return (self.zmq_bridge_in, self.zmq_bridge_out, self._ident_number - 1)
     def start(self):
         logging.info('Plug starting')

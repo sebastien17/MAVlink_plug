@@ -18,18 +18,27 @@
 #	along with MAVlinkplug.  If not, see <http://www.gnu.org/licenses/>.
 #	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-from __future__ import print_function
-import mavlinkplug.hil
-
-#Create Plug
-my_plug = mavlinkplug.Plug()
-
-#Connect to UAV on COM 3
-mav_con01 = my_plug.MAVLINK_in('COM3',dialect='pixhawk')
-
-#Set a output file
-my_plug.FILE_out('hil_test.txt')
-
-my_plug.TCP_in_out(mav_con01, '', 14141)
-
-my_plug.server_forever()
+if(__name__ == '__main__'):
+    
+    import mavlinkplug.Module
+    import mavlinkplug.Plug
+    from time import sleep
+    import logging
+    
+    #Handling logging options
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter("%(levelname)s - %(message)s")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    
+    #Creating plug
+    plug = mavlinkplug.Plug.Plug()
+    plug.start()
+    
+    
+    test = mavlinkplug.Module.MAVlinkPlugConnection(('tcp://127.0.0.1:45689','tcp://127.0.0.1:45688',123),'COM7',dialect='ardupilotmega',baud=57600)
+    test.start()
+    mavlinkplug.Plug.Plug.server_forever()
