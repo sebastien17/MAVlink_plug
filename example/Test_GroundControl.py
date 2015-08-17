@@ -45,7 +45,7 @@ if(__name__ == '__main__'):
     file_output = mavlinkplug.Module.MAVlinkPlugFileWriter(plug.plug_info(),'Test_GroundControl.log')
 
     #Open a connection for GC
-    #gc_connection = mavlinkplug.Module.
+    gc_connection = mavlinkplug.Module.MAVLinkPlugTCPConnection(plug.plug_info(), ('127.0.0.1',17562), mav_con_01.ident())
 
     #Server forever
     mavlinkplug.Plug.Plug.server_forever()
