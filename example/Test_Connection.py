@@ -39,6 +39,6 @@ if(__name__ == '__main__'):
     plug.start()
     
     
-    test = mavlinkplug.Module.MAVlinkPlugConnection(('tcp://127.0.0.1:45689','tcp://127.0.0.1:45688',123),'COM7',dialect='ardupilotmega',baud=57600)
+    test = mavlinkplug.Module.MAVlinkPlugConnection(('tcp://127.0.0.1:45689','tcp://127.0.0.1:45688',123),'COM7',dialect='ardupilotmega',baud=115200)
     test.start()
     mavlinkplug.Plug.Plug.server_forever()

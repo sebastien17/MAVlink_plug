@@ -23,6 +23,9 @@ from struct import pack
 
 _PACK_FORMAT = '!B'
 
+
+
+
 class _MetaClassList(type):
     def __getattr__(cls, name):
         if(name in cls._clist):

@@ -30,7 +30,7 @@ if(__name__ == '__main__'):
     logger.setLevel(logging.INFO)
     handler = logging.StreamHandler()
     handler.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(levelname)s - %(message)s")
+    formatter = logging.Formatter(' %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
 
@@ -38,14 +38,19 @@ if(__name__ == '__main__'):
     plug = mavlinkplug.Plug.Plug()
     plug.start()
 
-    mav_con_01 = mavlinkplug.Module.MAVlinkPlugConnection(plug.plug_info(),'COM7',dialect='ardupilotmega',baud=57600)
-    mav_con_01.start()
+    #Set a mavlink connection with  MAVlink ready devices
+    mav_con_01 = mavlinkplug.Module.MAVlinkPlugConnection(plug.plug_info(),'COM7',dialect='ardupilotmega',baud=115200)
 
     #Set a output file
     file_output = mavlinkplug.Module.MAVlinkPlugFileWriter(plug.plug_info(),'Test_GroundControl.log')
 
-    #Open a connection for GC
-    gc_connection = mavlinkplug.Module.MAVLinkPlugTCPConnection(plug.plug_info(), ('127.0.0.1',17562), mav_con_01.ident())
+    #Set a connection for GC
+    gc_connection = mavlinkplug.Module.MAVLinkPlugTCPConnection(plug.plug_info(), ('',17562), mav_con_01.ident())
+
+    #Start all modules
+    file_output.start()
+    gc_connection.start()
+    mav_con_01.start()
 
     #Server forever
     mavlinkplug.Plug.Plug.server_forever()

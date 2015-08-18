@@ -27,147 +27,57 @@ from pymavlink.generator.mavcrc import x25crc
 from mavlinkplug.Exception import MAVlinkPlugException 
 
 
-#TODO : Message Type definition
-MSG_PLUG_TYPE_MAV_MSG = 1
-MSG_PLUG_TYPE_MAV_COMMAND = 13
-MSG_PLUG_TYPE_KILL = 17
-
-MSG_PLUG_TYPE = {
-    MSG_PLUG_TYPE_MAV_MSG : 'MAVlinkPlugMessage',
-    MSG_PLUG_TYPE_MAV_COMMAND : 'MAVlinkPlugMavCommand',
-    MSG_PLUG_TYPE_KILL : 'MAVlinkPlugKill'
-    }
-    
-#TODO : Special Destination, Source Definition
-MSG_PLUG_DEST_TYPE_ALL = 255
-
-def DEF_PACK(_integer):
-    return struct.pack('!B', _integer)
-
-class PlugHeader(object):
-    def __init__(self, destination = None, source = None, type = None, timestamp = 0.0):
-        self.__pack = '!BBBQ'
-        self.__destination = destination
-        self.__source = source
-        self.__type = type
-        self.__timestamp = timestamp
-    
-    #Destination property
+#Data classes
+class RawData(object):
+    _type = 'RawData'
+    def __init__(self, value = None):
+        self._data = None #Useless
+        self.data = value
     @property
-    def destination(self):
-        if(self.__destination == None):
-            raise MAVlinkPlugException('Invalid header data : destination not define')
-        else:
-            return self.__destination
-    @destination.setter
-    def destination(self, destination):
-        if( not isinstance(destination, int) or destination < 0 or destination > 255):
-            raise MAVlinkPlugException('Invalid header destination set value: {0}'.format(destination))
-        else:
-            self.__destination = destination
-    #Source property
+    def packed(self):
+        return self.data
     @property
-    def source(self):
-        if(self.__source == None):
-            raise MAVlinkPlugException('Invalid header data : source not define')
+    def data(self):
+        if(self._data == None):
+            raise MAVlinkPlugException('Invalid Data : data not define')
         else:
-            return self.__source
-    @source.setter
-    def source(self, source):
-        if( not isinstance(source, int) or source < 0 or source > 255):
-            raise MAVlinkPlugException('Invalid header source set value: {0}'.format(source))
-        else:
-            self.__source = source
-    #Type property
+            return self._data
+    @data.setter
+    def data(self,value):
+        #self._data contains raw data
+        self._data = value
     @property
     def type(self):
-        if(self.__type == None):
-            raise MAVlinkPlugException('Invalid header data : type not define')
-        else:
-            return self.__type
-    @type.setter
-    def type(self, type):
-        if( not type in MSG_PLUG_TYPE):
-            raise MAVlinkPlugException('Invalid header type set value: {0}'.format(type))
-        else:
-            self.__type = type
-    #Timestamp property
+        return self._type
+
+class MAVLinkData(RawData):
+    _type = 'MAVLinkData'
     @property
-    def timestamp(self):
-        if(self.__timestamp == None):
-            raise MAVlinkPlugException('Invalid header data : timestamp not define')
-        else:
-            return self.__timestamp
-    @timestamp.setter
-    def timestamp(self, _timestamp):
-        if( not isinstance(_timestamp, int) or _timestamp < 0):
-            raise MAVlinkPlugException('Invalid header timestamp set value: {0}'.format(_timestamp))
-        else:
-            self.__timestamp = _timestamp
-    def extract(self, msg):
-        self.destination, self.source, self.type, self.timestamp = struct.unpack(self.__pack ,msg[:self.size()])
-        return msg[self.size():]
-    def pack(self):
-        return struct.pack(self.__pack, self.__destination, self.__source, self.__type, self.__timestamp)
-    def size(self):
-        return struct.Struct(self.__pack).size
-        
-        
-class PlugMessage(object):
-    def __init__(self, msg = None):
-        self.__header = PlugHeader()
-        if(msg == None):
-            self.__data = None
-        else:
-             self.data = self.__header.extract(msg)
-    #header property
-    @property
-    def header(self):
-        return self.__header
-    @header.setter
-    def header(self, value):
-        self.__header = value
-    #data property
+    def packed(self):
+        return self.data.get_msgbuf()
     @property
     def data(self):
-        if(self.__data == None):
-            raise MAVlinkPlugException('No data available')
+        if(self._data == None):
+            raise MAVlinkPlugException('Invalid Data : data not define')
         else:
-            return self.__data
+            return self._data
     @data.setter
-    def data(self, value):
-        #TODO : add check on this setter
-        self.__data = value
-    def pack(self):
-        return self.__header.pack() + self.__data
-        
-class MAVlinkPlugMessage(PlugMessage):
+    def data(self,value):
+        if(value != None):
+            #self._data contains a MAVlink message class instance
+            self._data = self._decode(value)
     @property
-    def data(self):
-        if(self.__data == None):
-            raise MAVlinkPlugException('No data available')
-        else:
-            return self.__data
-    @data.setter
-    def data(self, value):
-        #TODO : add check on this setter
-        #Set a MAVLink msg class into __data
-        self.__data = self.decode(value)
-    def pack(self):
-        return self.__header.pack() + self.__data.get_msgbuf()
-    def json_mav_msg(self):
-        if(self.__data is None):
-            raise MAVlinkPlugException('No data available')
-        else:
-            d_type = self.__data.get_type()
-            data = {}
-            data[d_type] = {}
-            if (d_type != 'BAD DATA' and d_type != 'BAD_DATA'):      #BAD DATA message ignored
-                for i in self.__data.get_fieldnames():
-                    data[d_type][i]=self.__data.__dict__[i]
-                    json_data = dumps(data)
-            return data
-    def decode(self, msgbuf):
+    def json(self):
+        d_type = self.data.get_type()
+        data = {}
+        data[d_type] = {}
+        if (d_type != 'BAD DATA' and d_type != 'BAD_DATA'):      #BAD DATA message ignored
+            for i in self.data.get_fieldnames():
+                data[d_type][i]=self.data.__dict__[i]
+                json_data = dumps(data)
+        return data
+    #Decode buffer into MAVlink message class instance
+    def _decode(self, msgbuf):
         '''
         Decode a buffer as a MAVLink message
         '''
@@ -243,3 +153,157 @@ class MAVlinkPlugMessage(PlugMessage):
         m._header = mavlink.MAVLink_header(msgId, mlen, seq, srcSystem, srcComponent)
         self._data = m
         return m
+
+ {
+        'MAV_MSG': [ 1, MAVLinkData],
+        'MAV_COMMAND': [2, RawData],
+        'KILL': [4, RawData],
+        'RAW': [8, RawData]
+    }
+
+class TypeContainer(object):
+    def __init__(self, structure, data):
+        class _Item(object):
+            pass
+        for key, value in data.iteritems() :
+            temp = _Item()
+            for prop_name in structure:
+                temp.__dict__[prop_name] = value[structure.index(prop_name)]
+            self.__dict__[key] = temp
+
+    def __getattr__(self, name):
+        if(name in self._name):
+            return cls._clist.index(name)
+        elif(name.endswith('_P')):
+            return pack(_PACK_FORMAT, cls.__getattr__(name[:-2]))
+        else:
+            raise MAVlinkPlugException('MSG_PLUG_TYPE {0} not existing'.format(name))
+    def __contains__(cls, item):
+        return True if(item in cls._clist) else False
+
+
+class Destination(object):
+    # Message Type definition
+    _type = [
+        ['ALL', 255, None]
+    ]
+
+
+# Header
+class Header(object):
+    def __init__(self):
+        self._pack = '!BBBQ'
+        self._destination = None
+        self._source = None
+        self._type = None
+        self._timestamp = None
+
+    #Destination property
+    @property
+    def destination(self):
+        if(self._destination == None):
+            raise MAVlinkPlugException('Invalid header data : destination not define')
+        else:
+            return self._destination
+    @destination.setter
+    def destination(self, destination):
+        if( not isinstance(destination, int) or destination < 0 or destination > 255):
+            raise MAVlinkPlugException('Invalid header destination set value: {0}'.format(destination))
+        else:
+            self._destination = destination
+    #Source property
+    @property
+    def source(self):
+        if(self._source == None):
+            raise MAVlinkPlugException('Invalid header data : source not define')
+        else:
+            return self._source
+    @source.setter
+    def source(self, source):
+        if( not isinstance(source, int) or source < 0 or source > 255):
+            raise MAVlinkPlugException('Invalid header source set value: {0}'.format(source))
+        else:
+            self._source = source
+    #Type property
+    @property
+    def type(self):
+        if(self._type == None):
+            raise MAVlinkPlugException('Invalid header data : type not define')
+        else:
+            return self._type
+    @type.setter
+    def type(self, type):
+        if( not type in MSG_PLUG_TYPE):
+            raise MAVlinkPlugException('Invalid header type set value: {0}'.format(type))
+        else:
+            self._type = type
+    #Timestamp property
+    @property
+    def timestamp(self):
+        if(self._timestamp == None):
+            raise MAVlinkPlugException('Invalid header data : timestamp not define')
+        else:
+            return self._timestamp
+    @timestamp.setter
+    def timestamp(self, timestamp):
+        if( not isinstance(timestamp, long) or timestamp < 0):
+            raise MAVlinkPlugException('Invalid header timestamp set value: {0}'.format(timestamp))
+        else:
+            self._timestamp = timestamp
+    #Packed property
+    @property
+    def packed(self):
+        return struct.pack(self._pack, self.destination, self.source, self.type, self.timestamp)
+    #Build header from parameter
+    def build_from(self, destination, source, type, timestamp):
+        self.destination = destination
+        self.source = source
+        self.type = type
+        self.timestamp = timestamp
+    #Unpack header from message
+    def unpack_from(self, message):
+        p_size = struct.Struct(self._pack).size
+        self.destination, self.source, self.type, self.timestamp = struct.unpack(self._pack ,message[:p_size])
+        #TODO: has to return an instance of data class
+        return message[p_size:]
+
+
+#Message
+class Message(object):
+    def __init__(self):
+        self._header = None
+        self._data = None
+    @property
+    def data(self):
+        if(self._data == None):
+            raise MAVlinkPlugException('Invalid Data : data not define')
+        else:
+            return self._data
+    @data.setter
+    def data(self,value):
+        if(self._header == None):
+            raise MAVlinkPlugException('Invalid Header : header has to be define ahead of data')
+        else:
+            #self._data need to contain data class instance
+            #TODO : Add data check against header type
+            self._data = value
+    @property
+    def header(self):
+        if(self._header == None):
+            raise MAVlinkPlugException('Invalid Header : header not define')
+        else:
+            return self._header
+    @header.setter
+    def header(self,value):
+        #self._header need to contain header class instance
+        self._header = value
+    @property
+    def packed(self):
+        return self.header.packed + self.data.packed
+    def unpack_from(self, byte_message):
+        self.header = Header()
+        self.data = self.header.unpack_from(byte_message) #Check included !!!!
+    def build_from(self, header_instance, data_instance):
+        self.header = header_instance
+        self.data = data_instance
+
