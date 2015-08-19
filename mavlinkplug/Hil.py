@@ -95,7 +95,7 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         _header = mavlinkplug.Message.Header().build_from(self._mavlink_connection_ident,
                                                           self._ident,
                                                           mavlinkplug.Message.TYPE.MAV_MSG.value,
-                                                          time()
+                                                          long(time())
                                                           )
         _data = mavlinkplug.Message.MAVLinkData().build_from(_mav_message)
         _mavlink_plug_message = mavlinkplug.Message.Message().build_from(_header,_data)

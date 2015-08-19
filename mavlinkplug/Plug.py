@@ -55,7 +55,8 @@ class Plug(object):
         self._processd.bind_in(self.zmq_bridge_in)
         self._processd.bind_out(self.zmq_bridge_out)
         self._processd.setsockopt_in(zmq.SUBSCRIBE,b'')
-        self._ident_number = 0
+        self._ident = 254
+        self._ident_number = 1
         logging.info('Plug initialized')
         
     def plug_info(self, increment = True):
