@@ -49,7 +49,9 @@ class RawData(object):
     @property
     def type(self):
         return self._type
-
+    def build_from(self, value):        #For signature uniformity
+        self.value = value
+        return self
 class MAVLinkData(RawData):
     _type = 'MAVLinkData'
     @property
@@ -301,6 +303,7 @@ class Header(object):
         self.source = source
         self.type = type
         self.timestamp = timestamp
+        return self
     #Unpack header from message
     def unpack_from(self, message):
         p_size = struct.Struct(self._pack).size
@@ -350,4 +353,6 @@ class Message(object):
     def build_from(self, header_instance, data_instance):
         self.header = header_instance
         self.data = data_instance
-
+        return self
+def integer_pack(_integer):
+    return struct.pack('!B', _integer)

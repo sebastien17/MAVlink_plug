@@ -34,7 +34,7 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         self._addr_from_FL = 'tcp://127.0.0.1:45064'
         self._Aircraft_Type_cls = Aircraft_Type_cls
         self.daemon = True
-        self._default_subscribe.append(mavlinkplug.Message.DEF_PACK(self._ident))
+        self._default_subscribe.append(mavlinkplug.Message.integer_pack(self._ident))
         self._dumb_header = mavlinkplug.Message.mavlink.MAVLink_header()
     def setup(self):
         super(MAVLinkPlugHil,self).setup()
@@ -67,9 +67,10 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         :return: Nothing
         '''
         _msg = msg[0] #get the first (and only) part of the message
-        mavlinkplug_message = mavlinkplug.Message.MAVlinkPlugMessage(_msg)
-        if(mavlinkplug_message.header.type == mavlinkplug.Message.MSG_PLUG_TYPE_MAV_MSG):
-            data_2_FL = self._Aircraft_Type_cls.mav_2_FL(mavlinkplug_message.data)
+        mavlinkplug_message = mavlinkplug.Message.Message()
+        mavlinkplug_message.unpack_from(_msg)
+        if(mavlinkplug_message.header.type == mavlinkplug.Message.TYPE.MAV_MSG.value and mavlinkplug_message.header.source != self._ident):
+            data_2_FL = self._Aircraft_Type_cls.mav_2_FL(mavlinkplug_message.data.value)
             if(data_2_FL != None):
                 #Stringify
                 data_2_FL = map(str,data_2_FL)
@@ -91,13 +92,15 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         _mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_sensor_message(_data_2_plug).pack(self._dumb_header)
 
         #MavlinkPlug Message Creation
-        _mavlink_plug_message = mavlinkplug.Message.MAVlinkPlugMessage(_mav_message)
-        _mavlink_plug_message.header.destination = self._mavlink_connection_ident
-        _mavlink_plug_message.header.source = self._ident
-        _mavlink_plug_message.header.type = mavlinkplug.Message.MSG_PLUG_TYPE_MAV_MSG
-        _mavlink_plug_message.header.timestamp = time()
+        _header = mavlinkplug.Message.Header().build_from(self._mavlink_connection_ident,
+                                                          self._ident,
+                                                          mavlinkplug.Message.TYPE.MAV_MSG.value,
+                                                          time()
+                                                          )
+        _data = mavlinkplug.Message.MAVLinkData().build_from(_mav_message)
+        _mavlink_plug_message = mavlinkplug.Message.Message().build_from(_header,_data)
 
         #Sending MavlinkPLug Message
-        self._stream_to_plug(_mavlink_plug_message.pack())
+        self._stream_to_plug(_mavlink_plug_message.packed)
 
         del(_mavlink_plug_message)

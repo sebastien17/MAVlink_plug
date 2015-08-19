@@ -68,7 +68,13 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
         socket.connect(self._zmq_sock_out)                       #New socket which publish to the bridge
         self.try_connection()
         logging.info('MAVlinkPlugConnection {0} loop start'.format(self._ident))
-        plug_message = mavlinkplug.Message.PlugMessage()
+
+        _header = mavlinkplug.Message.Header().build_from(mavlinkplug.Message.DESTINATION.ALL.value,
+                                                          self._ident,
+                                                          mavlinkplug.Message.TYPE.MAV_MSG.value,
+                                                          0)
+        _data = mavlinkplug.Message.MAVLinkData()
+        plug_message = mavlinkplug.Message.Message().build_from(_header, _data)
         time_idle = None
         while(self._run):
             try:
@@ -82,17 +88,9 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
                     time_idle = None
                     logging.debug(msg)
                     self._in_msg += 1
-
-                    plug_message = mavlinkplug.Message.PlugMessage()
-                    plug_message.header.destination = mavlinkplug.Message.MSG_PLUG_DEST_TYPE_ALL
-                    plug_message.header.type = mavlinkplug.Message.MSG_PLUG_TYPE_MAV_MSG
-                    plug_message.header.source = self._ident
-                    #plug_message.header.timestamp = 1
                     plug_message.header.timestamp = long(msg._timestamp * 1000)
-                    plug_message.data = msg.get_msgbuf()
-
-                    #logging.debug(plug_message.pack())
-                    socket.send(plug_message.pack())
+                    plug_message.data.value = msg.get_msgbuf()
+                    socket.send(plug_message.packed)
                 else:
                     if(time_idle == None):
                         time_idle = time()
@@ -112,22 +110,22 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
     @in_thread(isDaemon = True)
     def _mod_2(self):
         socket =  self._zmq_context.socket(zmq.SUB)
-        socket.setsockopt(zmq.SUBSCRIBE, mavlinkplug.Message.DEF_PACK(mavlinkplug.Message.MSG_PLUG_DEST_TYPE_ALL))
-        socket.setsockopt(zmq.SUBSCRIBE, mavlinkplug.Message.DEF_PACK(self._ident))
+        socket.setsockopt(zmq.SUBSCRIBE, mavlinkplug.Message.DESTINATION.ALL.p_value)
+        socket.setsockopt(zmq.SUBSCRIBE, mavlinkplug.Message.integer_pack(self._ident))
         socket.connect(self._zmq_sock_in)
         while(self._run):
-            _mavlinkplug_message = mavlinkplug.Message.PlugMessage(msg = socket.recv())
+            _mavlinkplug_message = mavlinkplug.Message.Message().unpack_from(socket.recv())
             #Do not process message from this module
             if(_mavlinkplug_message.header.source == self._ident):
                 continue
-            elif(_mavlinkplug_message.header.type == mavlinkplug.Message.MSG_PLUG_TYPE_KILL):
+            elif(_mavlinkplug_message.header.type == mavlinkplug.Message.TYPE.KILL.value):
                 self.stop()
-            elif(_mavlinkplug_message.header.type == mavlinkplug.Message.MSG_PLUG_TYPE_MAV_MSG):
-                self.write(_mavlinkplug_message.data)
-            elif(_mavlinkplug_message.header.type == mavlinkplug.Message.MSG_PLUG_TYPE_RAW):
-                self.write(_mavlinkplug_message.data)
-            elif(_mavlinkplug_message.header.type == mavlinkplug.Message.MSG_PLUG_TYPE_MAV_COMMAND):
-                self.mavlink_command(_mavlinkplug_message.data)
+            elif(_mavlinkplug_message.header.type == mavlinkplug.Message.TYPE.MAV_MSG.value):
+                self.write(_mavlinkplug_message.data.packed)
+            elif(_mavlinkplug_message.header.type == mavlinkplug.Message.TYPE.RAW.value):
+                self.write(_mavlinkplug_message.data.packed)
+            elif(_mavlinkplug_message.header.type == mavlinkplug.Message.TYPE.MAV_COMMAND.value):
+                self.mavlink_command(_mavlinkplug_message.data.packed)
             del(_mavlinkplug_message)
     def mavlink_command(self, cmd):
         if(self._mavh == None):
@@ -195,8 +193,8 @@ class MAVlinkPlugFileWriter(MAVLinkPlugZmqBase):
         self.stream(zmq.SUB, self._addr_from_plug, bind = False, callback = self._plug_2_file)
         self._file_descriptor = open(self._file_name, 'w', 500)
     def _plug_2_file(self, p_msg):
-        plug_msg = mavlinkplug.Message.MAVlinkPlugMessage(msg = p_msg[0])
-        string_to_write = '{0} {1} {2} {3} {4}'.format(plug_msg.header.timestamp, plug_msg.header.destination, plug_msg.header.source, plug_msg.header.type, plug_msg.data)
+        plug_msg = mavlinkplug.Message.Message().unpack_from(p_msg[0])
+        string_to_write = '{0} {1} {2} {3} {4}'.format(plug_msg.header.timestamp, plug_msg.header.destination, plug_msg.header.source, plug_msg.header.type, plug_msg.data.value)
         print(string_to_write, file = self._file_descriptor)
     def stop(self):
         super(MAVlinkPlugFileWriter, self).stop()
@@ -211,7 +209,7 @@ class MAVLinkPlugTCPConnection(multiprocessing.Process):
         self.daemon = True
         self._ident = None
         self._run = True
-        self._subscribe = [mavlinkplug.Message.DEF_PACK(mav_connection_ident)]
+        self._subscribe = [mavlinkplug.Message.integer_pack(mav_connection_ident)]
         logging.info('MAVLinkPlugTCPConnection Initializing')
     def run(self):
         self._connection_activated = False
@@ -241,10 +239,10 @@ class MAVLinkPlugTCPConnection(multiprocessing.Process):
                 _zmq_from_plug.setsockopt(zmq.SUBSCRIBE, opt)
         _zmq_from_plug.connect(self._addr_from_plug)
         while(self._connection_activated):
-            mavlinkplug_message = mavlinkplug.Message.MAVlinkPlugMessage(_zmq_from_plug.recv())
-            if(mavlinkplug_message.header.type == mavlinkplug.Message.MSG_PLUG_TYPE_MAV_MSG):
+            mavlinkplug_message = mavlinkplug.Message.Message().unpack_from(_zmq_from_plug.recv())
+            if(mavlinkplug_message.header.type == mavlinkplug.Message.TYPE.MAV_MSG.value and mavlinkplug_message.header.source != self._ident):
                 try:
-                    self._connection_h.send(mavlinkplug_message.data)
+                    self._connection_h.send(mavlinkplug_message.data.packed)
                 except:
                     self._connection_activated = False
     @mavlinkplug.Base.in_thread(True)
@@ -252,19 +250,21 @@ class MAVLinkPlugTCPConnection(multiprocessing.Process):
         #Create ZMQ socket
         _zmq_to_plug = self._zmq_context.socket(zmq.PUB)
         _zmq_to_plug.connect(self._addr_from_plug)
+        _header = mavlinkplug.Message.Header().build_from(self._mav_connection_ident,
+                                                          self._ident,
+                                                          mavlinkplug.Message.TYPE.RAW.value,
+                                                          1)
+        _data = mavlinkplug.Message.MAVLinkData()
+        _mavlink_plug_message = mavlinkplug.Message.Message().build_from(_header, _data)
         while(self._connection_activated):
             try:
                 _in_data = self._connection_h.recv(4096)
             except:
                 self._connection_activated = False
             else:
-                _mavlink_plug_message = mavlinkplug.Message.PlugMessage()
-                _mavlink_plug_message.header.destination = self._mav_connection_ident
-                _mavlink_plug_message.header.source = self._ident
-                _mavlink_plug_message.header.type = mavlinkplug.Message.MSG_PLUG_TYPE_RAW
                 _mavlink_plug_message.header.timestamp = time()
-                _mavlink_plug_message.data = _in_data
-                _zmq_to_plug.send(_mavlink_plug_message.pack())
+                _mavlink_plug_message.data.value = _in_data
+                _zmq_to_plug.send(_mavlink_plug_message.packed)
     def stop(self):
         logging.info('MAVLinkPlugTCPConnection {0} Stopping'.format(self._ident))
         self.terminate()

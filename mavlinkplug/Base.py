@@ -49,7 +49,7 @@ class MAVLinkPlugZmqBase(multiprocessing.Process):
         self._loop = None
         self.daemon = True
         self._ident = None
-        self._default_subscribe = [mavlinkplug.Message.DEF_PACK(mavlinkplug.Message.MSG_PLUG_DEST_TYPE_ALL)]
+        self._default_subscribe = [mavlinkplug.Message.DESTINATION.ALL.p_value]
     def setup(self):
         if(self._zmq_context == None):
             self._zmq_context = zmq.Context()
