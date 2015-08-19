@@ -25,27 +25,27 @@ import pymavlink.dialects.v10.ardupilotmega as mavlink
 #import pymavlink.dialects.v10.pixhawk as mavlink
 from pymavlink.generator.mavcrc import x25crc
 from mavlinkplug.Exception import MAVlinkPlugException 
-
+from collections import namedtuple
 
 #Data classes
 class RawData(object):
     _type = 'RawData'
     def __init__(self, value = None):
-        self._data = None #Useless
-        self.data = value
+        self._value = None #Useless
+        self.value = value
     @property
     def packed(self):
-        return self.data
+        return self.value
     @property
-    def data(self):
-        if(self._data == None):
-            raise MAVlinkPlugException('Invalid Data : data not define')
+    def value(self):
+        if(self._value == None):
+            raise MAVlinkPlugException('Invalid value : value not define')
         else:
-            return self._data
-    @data.setter
-    def data(self,value):
-        #self._data contains raw data
-        self._data = value
+            return self._value
+    @value.setter
+    def value(self,value):
+        #self._value contains raw value
+        self._value = value
     @property
     def type(self):
         return self._type
@@ -54,26 +54,31 @@ class MAVLinkData(RawData):
     _type = 'MAVLinkData'
     @property
     def packed(self):
-        return self.data.get_msgbuf()
+        return self.value.get_msgbuf()
     @property
-    def data(self):
-        if(self._data == None):
-            raise MAVlinkPlugException('Invalid Data : data not define')
+    def value(self):
+        if(self._value == None):
+            raise MAVlinkPlugException('Invalid value : value not define')
         else:
-            return self._data
-    @data.setter
-    def data(self,value):
+            return self._value
+    @value.setter
+    def value(self,value):
+        #self._value has to contain a MAVlink message class instance
         if(value != None):
-            #self._data contains a MAVlink message class instance
-            self._data = self._decode(value)
+            if(isinstance(value, mavlink.MAVLink)):     #Is this a mavlink message object ?
+                self._value = value
+            else:                                       #Try to decode into a mavlink message object
+                self._value = self._decode(value)
+        else:
+            self._value = None
     @property
     def json(self):
-        d_type = self.data.get_type()
+        d_type = self.value.get_type()
         data = {}
         data[d_type] = {}
         if (d_type != 'BAD DATA' and d_type != 'BAD_DATA'):      #BAD DATA message ignored
             for i in self.data.get_fieldnames():
-                data[d_type][i]=self.data.__dict__[i]
+                data[d_type][i]=self.value.__dict__[i]
                 json_data = dumps(data)
         return data
     #Decode buffer into MAVlink message class instance
@@ -151,43 +156,79 @@ class MAVLinkData(RawData):
         m._payload = msgbuf[6:-2]
         m._crc = crc
         m._header = mavlink.MAVLink_header(msgId, mlen, seq, srcSystem, srcComponent)
-        self._data = m
+        self._value = m
         return m
 
- {
-        'MAV_MSG': [ 1, MAVLinkData],
-        'MAV_COMMAND': [2, RawData],
-        'KILL': [4, RawData],
-        'RAW': [8, RawData]
-    }
+
+
+
+
 
 class TypeContainer(object):
-    def __init__(self, structure, data):
-        class _Item(object):
-            pass
-        for key, value in data.iteritems() :
-            temp = _Item()
-            for prop_name in structure:
-                temp.__dict__[prop_name] = value[structure.index(prop_name)]
-            self.__dict__[key] = temp
-
-    def __getattr__(self, name):
-        if(name in self._name):
-            return cls._clist.index(name)
-        elif(name.endswith('_P')):
-            return pack(_PACK_FORMAT, cls.__getattr__(name[:-2]))
-        else:
-            raise MAVlinkPlugException('MSG_PLUG_TYPE {0} not existing'.format(name))
-    def __contains__(cls, item):
-        return True if(item in cls._clist) else False
-
-
-class Destination(object):
-    # Message Type definition
-    _type = [
-        ['ALL', 255, None]
+    #Class attributes
+    _type_description = [
+        ['MAV_MSG', 1, MAVLinkData],
+        ['MAV_COMMAND', 2, RawData],
+        ['KILL', 4, RawData],
+        ['RAW',8, RawData]
     ]
+    TypeItem = namedtuple('TypeItem', ['value','p_value','m_class'])
 
+    def __init__(self):
+        self._PACK_FORMAT = '!B'
+        self._names = []
+        self._values = []
+        self._p_values = []
+        self._m_classes = []
+        for value in self._type_description :
+            self._names.append(value[0])
+            self._values.append(value[1])
+            self._p_values.append(struct.pack(self._PACK_FORMAT,value[1]))
+            self._m_classes.append(value[2])
+    @property
+    def values(self):
+        return self._values
+    @property
+    def p_values(self):
+        return self._p_values
+    def __getattr__(self, name):
+        if(name in self._names):
+            return self.TypeItem(self._values[self._names.index(name)], self._p_values[self._names.index(name)], self._m_classes[self._names.index(name)])
+        else:
+            raise MAVlinkPlugException('Message Type {0} not defined'.format(name))
+    def get_class_from_value(self, p_value):
+        return self._get_X_from_Y(p_value, self._m_classes, self._values)
+    def get_class_from_p_value(self, p_value):
+        return self._get_X_from_Y(p_value, self._m_classes, self._p_values)
+    def _get_X_from_Y(self,p_value, X_table, Y_table):
+        if(p_value in Y_table):
+            return  X_table[Y_table.index(p_value)]
+        else:
+            raise MAVlinkPlugException('Message Type search item not defined'.format(p_value))
+
+class DestinationContainer(object):
+    _destination_description = [
+        ['ALL', 255],
+    ]
+    DestinationItem = namedtuple('DestinationItem',['value','p_value'])
+
+    def __init__(self):
+        self._PACK_FORMAT = '!B'
+        self._names = []
+        self._values = []
+        self._p_values = []
+        for value in self._destination_description :
+            self._names.append(value[0])
+            self._values.append(value[1])
+            self._p_values.append(struct.pack(self._PACK_FORMAT,value[1]))
+    def __getattr__(self, name):
+        if(name in self._names):
+            return self.DestinationItem(self._values[self._names.index(name)], self._p_values[self._names.index(name)])
+        else:
+            raise MAVlinkPlugException('Message Destination {0} not defined'.format(name))
+
+TYPE = TypeContainer()
+DESTINATION = DestinationContainer()
 
 # Header
 class Header(object):
@@ -233,7 +274,7 @@ class Header(object):
             return self._type
     @type.setter
     def type(self, type):
-        if( not type in MSG_PLUG_TYPE):
+        if( not type in TYPE.values):
             raise MAVlinkPlugException('Invalid header type set value: {0}'.format(type))
         else:
             self._type = type
@@ -264,9 +305,7 @@ class Header(object):
     def unpack_from(self, message):
         p_size = struct.Struct(self._pack).size
         self.destination, self.source, self.type, self.timestamp = struct.unpack(self._pack ,message[:p_size])
-        #TODO: has to return an instance of data class
-        return message[p_size:]
-
+        return TYPE.get_class_from_value(self.type)(message[p_size:])
 
 #Message
 class Message(object):
@@ -285,8 +324,10 @@ class Message(object):
             raise MAVlinkPlugException('Invalid Header : header has to be define ahead of data')
         else:
             #self._data need to contain data class instance
-            #TODO : Add data check against header type
-            self._data = value
+            if(isinstance(value, TYPE.get_class_from_value(self.header.type))):
+                self._data = value
+            else:
+                raise MAVlinkPlugException('Invalid Data : data does not fit header data type')
     @property
     def header(self):
         if(self._header == None):
@@ -296,7 +337,10 @@ class Message(object):
     @header.setter
     def header(self,value):
         #self._header need to contain header class instance
-        self._header = value
+        if(isinstance(value, Header)):
+            self._header = value
+        else:
+            raise MAVlinkPlugException('Invalid Header : object is not an instance of Header class')
     @property
     def packed(self):
         return self.header.packed + self.data.packed
