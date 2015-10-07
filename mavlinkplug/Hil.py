@@ -35,7 +35,7 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         self._Aircraft_Type_cls = Aircraft_Type_cls
         self.daemon = True
         self._default_subscribe.append(mavlinkplug.Message.integer_pack(self._ident))
-        self._dumb_header = mavlinkplug.Message.mavlink.MAVLink_header()
+        self._dumb_header = mavlinkplug.Message.mavlink.MAVLink_header(0)
     def setup(self):
         super(MAVLinkPlugHil,self).setup()
         #Define stream listening from plug
@@ -85,11 +85,13 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         :param msg: ZMQ message from FL
         :return: Nothing
         '''
+
         _msg = msg[0] #get the first (and only) part of the message
+
         _data_2_plug = self._Aircraft_Type_cls.FL_2_mav(_msg)
 
         #Mavlink Message Creation
-        _mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_sensor_message(_data_2_plug).pack(self._dumb_header)
+        _mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_sensor_message(*_data_2_plug).pack(self._dumb_header)
 
         #MavlinkPlug Message Creation
         _header = mavlinkplug.Message.Header().build_from(self._mavlink_connection_ident,
@@ -101,6 +103,6 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         _mavlink_plug_message = mavlinkplug.Message.Message().build_from(_header,_data)
 
         #Sending MavlinkPLug Message
-        self._stream_to_plug(_mavlink_plug_message.packed)
+        self._stream_to_plug.send(_mavlink_plug_message.packed)
 
         del(_mavlink_plug_message)

@@ -21,52 +21,48 @@
 _LOG = True
 
 if(__name__ == '__main__'):
-    
-    #Core module
+
     from time import sleep
     import logging
     
     #Internal module
     import mavlinkplug.Module
     import mavlinkplug.Plug
-    import mavlinkplug.QuadCopter
+    import mavlinkplug.AircraftType
     import mavlinkplug.Hil
     
-    if(_LOG == True):
-        logger = logging.getLogger()
-        logger.setLevel(logging.DEBUG)
-        
-        c_handler = logging.StreamHandler()
-        f_handler = logging.FileHandler('mavlink.log',mode = 'w')
-        c_handler.setLevel(logging.INFO)
-        f_handler.setLevel(logging.DEBUG)
-        
-        formatter = logging.Formatter('%(asctime)s %(process)d %(thread)d %(module)s %(funcName)s %(levelname)s - %(message)s')
-        c_handler.setFormatter(formatter)
-        f_handler.setFormatter(formatter)
-        
-        logger.addHandler(c_handler)
-        logger.addHandler(f_handler)
+
+    #Handling logging options
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.INFO)
+    formatter = logging.Formatter(' %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
     
     #Creating plug
     plug = mavlinkplug.Plug.Plug()
-    
-    #Creating Mavlink Connection 
-    mavlink_con = mavlinkplug.Module.MAVlinkPlugConnection(plug.plug_info(),'2014-12-10 15-45-32.tlog')
+    plug.start()
+
+
+    #Set a mavlink connection with  MAVlink ready devices
+    mav_con_01 = mavlinkplug.Module.MAVlinkPlugConnection(plug.plug_info(),'COM7',dialect='ardupilotmega',baud=115200)
+    #mav_con_01 = mavlinkplug.Module.MAVlinkPlugConnection(plug.plug_info(),'2014-12-10 15-45-32.tlog')
     
     #Creating HIL environment
-    hil_env = mavlinkplug.Hil.MAVLinkPlugHil(plug.plug_info(), mavlink_con.ident(), mavlinkplug.QuadCopter.QuadCopter)
+    hil_env = mavlinkplug.Hil.MAVLinkPlugHil(plug.plug_info(), mav_con_01.ident(), mavlinkplug.AircraftType.QuadCopter)
     
-    plug.start() #Plug start
-    mavlink_con.start() #Mavlink connection start
-
-    hil_env.start() #
+    hil_env.start() #HIL start
     hil_env.FL_initialize() #Flight loop start
+
+    mav_con_01.start() #Mavlink connection start
+
+
+
     #hil_env.hardware_initialize() #MAV start
+
+    #Server forever
     plug.server_forever() #Wait forever
-    #sleep(5)
+
     
-    #Cleaning
-    hil_env.stop()
-    mavlink_con.stop()
-    # del(plug)
