@@ -33,11 +33,16 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         self._addr_to_FL = 'tcp://127.0.0.1:45063'
         self._addr_from_FL = 'tcp://127.0.0.1:45064'
         self._Aircraft_Type_cls = Aircraft_Type_cls
-        self.daemon = True
+        self.daemon = False
         self._default_subscribe.append(mavlinkplug.Message.integer_pack(self._ident))
         self._dumb_header = mavlinkplug.Message.mavlink.MAVLink_header(0)
+        self._FL_loop_p = None
+        self._phase = 0
+        self._hb_count = 0
+
     def setup(self):
         super(MAVLinkPlugHil,self).setup()
+        #Initializing message callback
         #Define stream listening from plug
         self.stream(zmq.SUB, self._addr_from_plug, bind = False, callback = self._plug_2_FL)
         #Define stream publishing to FL
@@ -46,38 +51,91 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         self.stream(zmq.SUB, self._addr_from_FL, callback = self._FL_2_plug, subscribe = [b''])
         #Define stream publishing to plug
         self._stream_to_plug  = self.stream(zmq.PUB, self._addr_to_plug, bind = False)
-    def hardware_initialize(self):
-        # while(self._Mav_inst.mav_handle() == None):
-            # time.sleep(1)
-        # self._Mav_inst.mavlink_command('SET_HIL_ARM')
-        #TODO : add check
-        # time.sleep(2)
-        # self._Mav_inst.mavlink_command('RESET')
-        #TODO : add check
-        pass
-    def FL_initialize(self):
-        logging.info('Initializing Flight Loop')
-        aircraft = self._Aircraft_Type_cls(zmq_in = self._addr_to_FL, zmq_out = self._addr_from_FL)
-        aircraft.start()
+
+    def _get_MAVlink_Plug_Message(selfself, msg):
+        _msg = msg[0] #get the first (and only) part of the message
+        _message = mavlinkplug.Message.Message()
+        _message.unpack_from(_msg)
+        return _message
+
     def _plug_2_FL(self, msg):
+        _message = self._get_MAVlink_Plug_Message(msg)
+        if(_message.header.source == self._mavlink_connection_ident):
+            if(self._phase == 17):  #RUN
+                self._phase_RUN(_message)
+            elif(self._phase == 13):
+                self._phase_WAIT_HB(_message)
+            elif(self._phase == 11):
+                self._phase_RESET()
+            elif(self._phase == 7):
+                self._phase_WAIT_FOR_ALIVE(_message)
+            elif(self._phase == 0):
+                self._phase_INIT()
+
+    def _phase_INIT(self):
+        logging.info('INIT phase start')
+        self._FL_loop_p = self._Aircraft_Type_cls(zmq_in = self._addr_to_FL, zmq_out = self._addr_from_FL, lat = 43.6042600, long = 1.4436700) # Toulouse, France
+        logging.info('INIT phase end')
+        self._phase = 7 #Go to WAIT_FOR_ALIVE
+
+    def _phase_WAIT_FOR_ALIVE(self,msg):
+        if(self._hb_count == 0):
+            logging.info('WAIT_FOR_ALIVE phase start')
+        if(msg.header.type == mavlinkplug.Message.TYPE.MAV_MSG.value and msg.data.value.get_type() == 'HEARTBEAT'):
+            self._hb_count += 1
+        if(self._hb_count == 10):
+            self._hb_count = 0
+            self._phase = 11 #Go to RESET
+            logging.info('WAIT_FOR_ALIVE phase end')
+
+    def _phase_RESET(self):
+        logging.info('RESET phase start')
+
+        #MavlinkPlug Command Message Creation
+        _header = mavlinkplug.Message.Header().build_from(self._mavlink_connection_ident,self._ident,mavlinkplug.Message.TYPE.MAV_COMMAND.value,long(time()))
+        _data = mavlinkplug.Message.MavCommandData().build_from('SET_HIL_ARM')
+        _mavlink_plug_command_message = mavlinkplug.Message.Message().build_from(_header,_data)
+        self._stream_to_plug.send(_mavlink_plug_command_message.packed)
+
+        sleep(1)
+
+        #MavlinkPlug Command Message Creation
+        _data = mavlinkplug.Message.MavCommandData().build_from('RESET')
+        _mavlink_plug_command_message = mavlinkplug.Message.Message().build_from(_header,_data)
+        self._stream_to_plug.send(_mavlink_plug_command_message.packed)
+
+        logging.info('RESET phase end')
+        self._phase = 13 #Go to WAIT_FOR_ALIVE
+
+    def _phase_WAIT_HB(self,msg):
+        if(self._hb_count == 0):
+            logging.info('WAIT_HB phase start')
+        if(msg.header.type == mavlinkplug.Message.TYPE.MAV_MSG.value and msg.data.value.get_type() == 'HEARTBEAT'):
+            self._hb_count += 1
+        if(self._hb_count == 5):
+            self._hb_count = 0
+            self._FL_loop_p.start()
+            self._phase = 17 #Go to RESET
+
+            logging.info('WAIT_HB phase end')
+
+    def _phase_RUN(self,msg):
         '''
         Get message from plug and pass it to FL
         Call a class method from _Aircraft_Type_cls to adapt the message to send
         :param msg: mavlink plug message from plug
         :return: Nothing
         '''
-        _msg = msg[0] #get the first (and only) part of the message
-        mavlinkplug_message = mavlinkplug.Message.Message()
-        mavlinkplug_message.unpack_from(_msg)
-        if(mavlinkplug_message.header.type == mavlinkplug.Message.TYPE.MAV_MSG.value and mavlinkplug_message.header.source != self._ident):
-            data_2_FL = self._Aircraft_Type_cls.mav_2_FL(mavlinkplug_message.data.value)
+
+        if(msg.header.type == mavlinkplug.Message.TYPE.MAV_MSG.value):
+            data_2_FL = self._Aircraft_Type_cls.mav_2_FL(msg.data.value)
             if(data_2_FL != None):
                 #Stringify
                 data_2_FL = map(str,data_2_FL)
                 msg_2_FL = ' '.join(data_2_FL)
                 #Send to Flight Loop
                 self._stream_to_FL.send(msg_2_FL)
-        del(mavlinkplug_message)
+
     def _FL_2_plug(self, msg):
         '''
         Get message from FL and pass it to plug
@@ -87,7 +145,6 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         '''
 
         _msg = msg[0] #get the first (and only) part of the message
-
         _data_2_plug = self._Aircraft_Type_cls.FL_2_mav(_msg)
 
         #Mavlink Message Creation
@@ -104,5 +161,3 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
 
         #Sending MavlinkPLug Message
         self._stream_to_plug.send(_mavlink_plug_message.packed)
-
-        del(_mavlink_plug_message)

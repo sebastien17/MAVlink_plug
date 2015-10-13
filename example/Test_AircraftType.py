@@ -52,8 +52,8 @@ if(__name__ == '__main__'):
     #Creating HIL environment
     hil_env = mavlinkplug.Hil.MAVLinkPlugHil(plug.plug_info(), 17, mavlinkplug.AircraftType.Plane)
     
-    hil_env.start() #HIL start
     hil_env.FL_initialize() #Flight loop start
+    hil_env.start() #HIL start
 
     #hil_env.hardware_initialize() #MAV start
 

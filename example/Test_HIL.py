@@ -45,22 +45,24 @@ if(__name__ == '__main__'):
     plug = mavlinkplug.Plug.Plug()
     plug.start()
 
+    #Set a output file
+    file_output = mavlinkplug.Module.MAVlinkPlugFileWriter(plug.plug_info(),'Test_HIL.log')
+    file_output.start()
 
     #Set a mavlink connection with  MAVlink ready devices
-    mav_con_01 = mavlinkplug.Module.MAVlinkPlugConnection(plug.plug_info(),'COM7',dialect='ardupilotmega',baud=115200)
-    #mav_con_01 = mavlinkplug.Module.MAVlinkPlugConnection(plug.plug_info(),'2014-12-10 15-45-32.tlog')
-    
-    #Creating HIL environment
-    hil_env = mavlinkplug.Hil.MAVLinkPlugHil(plug.plug_info(), mav_con_01.ident(), mavlinkplug.AircraftType.QuadCopter)
-    
-    hil_env.start() #HIL start
-    hil_env.FL_initialize() #Flight loop start
-
+    mav_con_01 = mavlinkplug.Module.MAVlinkPlugConnection(plug.plug_info(),'COM3',dialect='ardupilotmega',baud=115200)
     mav_con_01.start() #Mavlink connection start
 
+    #Set a connection for GC
+    gc_connection = mavlinkplug.Module.MAVLinkPlugTCPConnection(plug.plug_info(), ('',17562), mav_con_01.ident())
+    gc_connection.start()
+
+    #Creating HIL environment
+    hil_env = mavlinkplug.Hil.MAVLinkPlugHil(plug.plug_info(), mav_con_01.ident(), mavlinkplug.AircraftType.Plane)
 
 
-    #hil_env.hardware_initialize() #MAV start
+    #Automatic Launch Procedure
+    hil_env.start()
 
     #Server forever
     plug.server_forever() #Wait forever

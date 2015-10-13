@@ -161,6 +161,7 @@ class MAVlinkPlugConnection(MAVLinkPlugModBase):
                             mavutil.mavlink.MAV_MODE_FLAG_SAFETY_ARMED |
                             mavutil.mavlink.MAV_MODE_FLAG_HIL_ENABLED,
                             0, 0, 0, 0, 0, 0)
+                    self._mavh.mav.param_set_send(self._mavh.target_system, self._mavh.target_component, 'HIL_MODE', 1.0, 2) #Patch for apm
                     logging_string = 'Launch set hil & arm command'
                 logging.info('Ident: {0} '.format(self._ident) + logging_string)
                 return True
@@ -194,7 +195,7 @@ class MAVlinkPlugFileWriter(MAVLinkPlugZmqBase):
         super(MAVlinkPlugFileWriter,self).setup()
         #Define stream listening from plug
         self.stream(zmq.SUB, self._addr_from_plug, bind = False, callback = self._plug_2_file, subscribe = self._subscribe)
-        self._file_descriptor = open(self._file_name, 'w', 500)
+        self._file_descriptor = open(self._file_name, 'w', 100)
     def _plug_2_file(self, p_msg):
         plug_msg = mavlinkplug.Message.Message().unpack_from(p_msg[0])
         string_to_write = '{0}\t{1}\t{2}\t{3}\t{4}'.format(plug_msg.header.timestamp, plug_msg.header.destination, plug_msg.header.source, plug_msg.header.type, plug_msg.data.value)
