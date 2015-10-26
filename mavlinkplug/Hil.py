@@ -139,16 +139,31 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
     def _FL_2_plug(self, msg):
         '''
         Get message from FL and pass it to plug
-        Call a class method from _Aircraft_Type_cls to adapt the message to send
+        Call a class method from _Aircraft_Type_cls to adapt the message to send and send the mavlink message through
+        Plug Message
         :param msg: ZMQ message from FL
         :return: Nothing
         '''
 
-        _msg = msg[0] #get the first (and only) part of the message
-        _data_2_plug = self._Aircraft_Type_cls.FL_2_mav(_msg)
+        msg = msg[0] #get the first (and only) part of the message
+        data_2_plug = self._Aircraft_Type_cls.FL_2_mav(msg)
 
+        #HIL state
         #Mavlink Message Creation
-        _mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_sensor_message(*_data_2_plug).pack(self._dumb_header)
+        #['time_usec', 'attitude_quaternion', 'rollspeed', 'pitchspeed', 'yawspeed', 'lat', 'lon', 'alt', 'vx', 'vy', 'vz', 'ind_airspeed', 'true_airspeed', 'xacc', 'yacc', 'zacc']
+        data_2_plug_state = [
+            data_2_plug[0],
+            '',
+
+
+
+        ]
+
+        mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_state_quaternion_message(*data_2_plug_state).pack(self._dumb_header)
+
+        #HIL sensor
+        #Mavlink Message Creation
+        #_mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_sensor_message(*data_2_plug).pack(self._dumb_header)
 
         #MavlinkPlug Message Creation
         _header = mavlinkplug.Message.Header().build_from(self._mavlink_connection_ident,
@@ -156,7 +171,7 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
                                                           mavlinkplug.Message.TYPE.MAV_MSG.value,
                                                           long(time())
                                                           )
-        _data = mavlinkplug.Message.MAVLinkData().build_from(_mav_message)
+        _data = mavlinkplug.Message.MAVLinkData().build_from(mav_message)
         _mavlink_plug_message = mavlinkplug.Message.Message().build_from(_header,_data)
 
         #Sending MavlinkPLug Message

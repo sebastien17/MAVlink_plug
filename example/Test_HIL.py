@@ -66,5 +66,3 @@ if(__name__ == '__main__'):
 
     #Server forever
     plug.server_forever() #Wait forever
-
-    

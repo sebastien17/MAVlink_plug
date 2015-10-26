@@ -189,24 +189,32 @@ class Plane(multiprocessing.Process):
 
     _data_out = [
     #for HIL_GPS
-    'position/lat-gc-rad',
-    'position/long-gc-rad',
-    'position/h-sl-ft',
+    'position/lat-gc-rad',          #0
+    'position/long-gc-rad',         #1
+    'position/h-sl-ft',             #2
     #for HIL_SENSOR
-    'accelerations/udot-ft_sec2',
-    'accelerations/vdot-ft_sec2',
-    'accelerations/wdot-ft_sec2',
-    'velocities/p-aero-rad_sec',
-    'velocities/q-aero-rad_sec',
-    'velocities/r-aero-rad_sec',
-    'atmosphere/P-psf',
-    'atmosphere/pressure-altitude',
-    'attitude/heading-true-rad',
-    'sensors/magnetometer/X/output',
-    'sensors/magnetometer/Y/output',
-    'sensors/magnetometer/Z/output'
+    'accelerations/udot-ft_sec2',   #3
+    'accelerations/vdot-ft_sec2',   #4
+    'accelerations/wdot-ft_sec2',   #5
+    'velocities/p-aero-rad_sec',    #6
+    'velocities/q-aero-rad_sec',    #7
+    'velocities/r-aero-rad_sec',    #8
+    'atmosphere/P-psf',             #9
+    'atmosphere/pressure-altitude', #10
+    'attitude/heading-true-rad',    #11
+    'sensors/magnetometer/X/output',#12
+    'sensors/magnetometer/Y/output',#13
+    'sensors/magnetometer/Z/output',#14
+    #for HIL_STATE
+    'velocities/v-north-fps',       #15
+    'velocities/v-east-fps',        #16
+    'velocities/v-down-fps',        #17
+    'velocities/vtrue-fps',         #18
+    'velocities/vc-fps',            #19
+    'attitude/phi-rad',             #20
+    'attitude/theta-rad',           #21
+    'attitude/psi-rad'              #22
     ]
-
     JSBSIM_DEFAULT_PATH = path.dirname(__file__) + sep + 'data' + sep
     MIN_SERVO_PPM = 950
     MAX_SERVO_PPM = 1800
@@ -239,7 +247,7 @@ class Plane(multiprocessing.Process):
         self._fdm.set_property_value("ic/theta-deg",0.0)
         self._fdm.set_property_value("ic/phi-deg",0.0)
         self._fdm.set_property_value("ic/psi-true-deg",110.0)
-        self._fdm.set_property_value("ic/vt-kts",0)
+        self._fdm.set_property_value("ic/vt-kts",20)
         #Fdm Trim
         self._fdm.do_trim(1)
         # Zmq setup
@@ -268,7 +276,6 @@ class Plane(multiprocessing.Process):
         :param mavlink_msg: mavlink message
         :return: tuples including servo raw values or None if message not
         '''
-
         if(mavlink_msg.get_type() == 'SERVO_OUTPUT_RAW'):
             return (
                     cls.cmd_norm(float(mavlink_msg.__dict__['servo1_raw'])),
@@ -278,51 +285,42 @@ class Plane(multiprocessing.Process):
                     )
         return None
     @classmethod
-    def FL_2_mav(cls, string):
+    def FL_2_mav_sensor(cls, string):
         '''
         :param string: ZMQ message string including  _data_out values (Human Readable)
-        :return: mavlink message to send
+        :return: function parameter for mavlink message "MAVLink_hil_sensor_message"
         '''
-                #data_2_plug format :
-        #        [
-        #        #for HIL_GPS
-        # 0       'position/lat-gc-rad',
-        # 1       'position/long-gc-rad',
-        # 2       'position/h-sl-ft',
-        #        #for HIL_SENSOR
-        # 3       'accelerations/udot-ft_sec2',
-        # 4       'accelerations/vdot-ft_sec2',
-        # 5       'accelerations/wdot-ft_sec2',
-        # 6       'velocities/p-aero-rad_sec',
-        # 7       'velocities/q-aero-rad_sec',
-        # 8       'velocities/r-aero-rad_sec',
-        # 9       'atmosphere/P-psf',
-        # 10      'atmosphere/pressure-altitude',
-        # 11      'attitude/heading-true-rad',
-        # 12      'sensors/magnetometer/X/output',
-        # 13      'sensors/magnetometer/Y/output',
-        # 14      'sensors/magnetometer/Z/output'
-        #        ]
-
-        _temp = string.split(" ")
+        temp = string.split(" ")
 
         #Data treatment
-        _messagedata  = [
-                            int(time()*1000000),            #time_usec
-                            float(_temp[3]),                #xacc
-                            float(_temp[4]),                #yacc
-                            float(_temp[5]),                #zacc
-                            float(_temp[6]),                #xgyro
-                            float(_temp[7]),                #ygyro
-                            float(_temp[8]),                #zgyro
-                            float(_temp[11]),               #xmag
-                            float(_temp[12]),               #ymag
-                            float(_temp[13]),               #zmag
-                            float(_temp[9])*0.478802589,    #abs_pressure in millibar
-                            0,                              #diff_pressure
-                            float(_temp[10]),               #pressure_alt
-                            15.0,                           #temperature
-                            int(65535)                      #fields_updated (ALL)
+        messagedata  = [
+                            int(time()*1000000),           #time_usec
+                            float(temp[3]),                #xacc
+                            float(temp[4]),                #yacc
+                            float(temp[5]),                #zacc
+                            float(temp[6]),                #xgyro
+                            float(temp[7]),                #ygyro
+                            float(temp[8]),                #zgyro
+                            float(temp[12]),               #xmag
+                            float(temp[13]),               #ymag
+                            float(temp[14]),               #zmag
+                            float(temp[9])*0.478802589,    #abs_pressure in millibar
+                            0,                             #diff_pressure
+                            float(temp[10]),               #pressure_alt
+                            15.0,                          #temperature
+                            int(65535)                     #fields_updated (ALL)
                        ]
 
-        return _messagedata
+        return messagedata
+    @classmethod
+    def FL_2_mav_sensor_state(cls,string):
+        '''
+        :param string: ZMQ message string including  _data_out values (Human Readable)
+        :return: function parameter for mavlink message "MAVLink_hil_state_quaternion_message"
+        '''
+        temp = string.split(" ")
+
+        #Data treatment
+        messagedata  = []
+
+        return messagedata
