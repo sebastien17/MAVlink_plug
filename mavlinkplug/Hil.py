@@ -26,7 +26,7 @@ import  mavlinkplug.Message
 
 
 class MAVLinkPlugHil(MAVLinkPlugZmqBase):
-    def __init__(self, module_info, mavlink_connection_ident, Aircraft_Type_cls):
+    def __init__(self, module_info, mavlink_connection_ident, Aircraft_Type_cls, hil_sensor = True):
         super(MAVLinkPlugHil, self).__init__()
         self._mavlink_connection_ident = mavlink_connection_ident
         self._addr_to_plug, self._addr_from_plug, self._ident =  module_info
@@ -39,11 +39,12 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         self._FL_loop_p = None
         self._phase = 0
         self._hb_count = 0
+        self._hil_sensor = hil_sensor
 
     def setup(self):
         super(MAVLinkPlugHil,self).setup()
-        #Initializing message callback
-        #Define stream listening from plug
+        # Initializing message callback
+        # Define stream listening from plug
         self.stream(zmq.SUB, self._addr_from_plug, bind = False, callback = self._plug_2_FL)
         #Define stream publishing to FL
         self._stream_to_FL  = self.stream(zmq.PUB, self._addr_to_FL)
@@ -146,33 +147,25 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         '''
 
         msg = msg[0] #get the first (and only) part of the message
+
         data_2_plug = self._Aircraft_Type_cls.FL_2_mav(msg)
 
-        #HIL state
-        #Mavlink Message Creation
-        #['time_usec', 'attitude_quaternion', 'rollspeed', 'pitchspeed', 'yawspeed', 'lat', 'lon', 'alt', 'vx', 'vy', 'vz', 'ind_airspeed', 'true_airspeed', 'xacc', 'yacc', 'zacc']
-        data_2_plug_state = [
-            data_2_plug[0],
-            '',
-
-
-
-        ]
-
-        mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_state_quaternion_message(*data_2_plug_state).pack(self._dumb_header)
-
-        #HIL sensor
-        #Mavlink Message Creation
-        #_mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_sensor_message(*data_2_plug).pack(self._dumb_header)
+        if(self._hil_sensor):
+            #HIL sensor Mavlink Message Creation
+            parameters = self._Aircraft_Type_cls.FL_2_mav_sensor(msg)
+            mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_sensor_message(*parameters).pack(self._dumb_header)
+        else:
+            #HIL state Mavlink Message Creation
+            #['time_usec', 'attitude_quaternion', 'rollspeed', 'pitchspeed', 'yawspeed', 'lat', 'lon', 'alt', 'vx', 'vy', 'vz', 'ind_airspeed', 'true_airspeed', 'xacc', 'yacc', 'zacc']
+            parameters = self._Aircraft_Type_cls.FL_2_mav_state(msg)
+            mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_state_quaternion_message(*parameters).pack(self._dumb_header)
 
         #MavlinkPlug Message Creation
-        _header = mavlinkplug.Message.Header().build_from(self._mavlink_connection_ident,
-                                                          self._ident,
-                                                          mavlinkplug.Message.TYPE.MAV_MSG.value,
-                                                          long(time())
-                                                          )
-        _data = mavlinkplug.Message.MAVLinkData().build_from(mav_message)
-        _mavlink_plug_message = mavlinkplug.Message.Message().build_from(_header,_data)
-
+        mavlink_plug_message = mavlinkplug.Message.MAVLinkData.build_full_message_from(
+                                                                                        self._mavlink_connection_ident,
+                                                                                        self._ident,
+                                                                                        long(time()),
+                                                                                        mav_message
+                                                                                        )
         #Sending MavlinkPLug Message
-        self._stream_to_plug.send(_mavlink_plug_message.packed)
+        self._stream_to_plug.send(mavlink_plug_message.packed)

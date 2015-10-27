@@ -52,6 +52,12 @@ class RawData(object):
     def build_from(self, value):        #For signature uniformity
         self.value = value
         return self
+    @classmethod
+    def build_full_message_from(cls, destination, source, timestamp, data):
+        header = Header().build_from(destination, source, TYPE.RAW.value,timestamp)
+        msg_data = cls().build_from(data)
+        return Message().build_from(header, msg_data)
+
 class MAVLinkData(RawData):
     _type = 'MAVLinkData'
     @property
