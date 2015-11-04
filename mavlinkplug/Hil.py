@@ -26,7 +26,7 @@ import  mavlinkplug.Message
 
 
 class MAVLinkPlugHil(MAVLinkPlugZmqBase):
-    def __init__(self, module_info, mavlink_connection_ident, Aircraft_Type_cls, hil_sensor = True):
+    def __init__(self, module_info, mavlink_connection_ident, Aircraft_Type_cls, hil_sensor=True, quaternion=True):
         super(MAVLinkPlugHil, self).__init__()
         self._mavlink_connection_ident = mavlink_connection_ident
         self._addr_to_plug, self._addr_from_plug, self._ident =  module_info
@@ -40,6 +40,7 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         self._phase = 0
         self._hb_count = 0
         self._hil_sensor = hil_sensor
+        self._quaternion = quaternion
 
     def setup(self):
         super(MAVLinkPlugHil,self).setup()
@@ -75,7 +76,7 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
 
     def _phase_INIT(self):
         logging.info('INIT phase start')
-        self._FL_loop_p = self._Aircraft_Type_cls(zmq_in = self._addr_to_FL, zmq_out = self._addr_from_FL, lat = 43.6042600, long = 1.4436700) # Toulouse, France
+        self._FL_loop_p = self._Aircraft_Type_cls(zmq_in = self._addr_to_FL, zmq_out = self._addr_from_FL, lat = 43.6042600, lon = 1.4436700) # Toulouse, France
         logging.info('INIT phase end')
         self._phase = 7 #Go to WAIT_FOR_ALIVE
 
@@ -135,7 +136,7 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
                 data_2_FL = map(str,data_2_FL)
                 msg_2_FL = ' '.join(data_2_FL)
                 #Send to Flight Loop
-                self._stream_to_FL.send(msg_2_FL)
+                #self._stream_to_FL.send(msg_2_FL)
 
     def _FL_2_plug(self, msg):
         '''
@@ -146,20 +147,28 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         :return: Nothing
         '''
 
-        msg = msg[0] #get the first (and only) part of the message
-
-        data_2_plug = self._Aircraft_Type_cls.FL_2_mav(msg)
+        msg = msg[0]  # get the first (and only) part of the message
 
         if(self._hil_sensor):
             #HIL sensor Mavlink Message Creation
             parameters = self._Aircraft_Type_cls.FL_2_mav_sensor(msg)
             mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_sensor_message(*parameters).pack(self._dumb_header)
         else:
-            #HIL state Mavlink Message Creation
-            #['time_usec', 'attitude_quaternion', 'rollspeed', 'pitchspeed', 'yawspeed', 'lat', 'lon', 'alt', 'vx', 'vy', 'vz', 'ind_airspeed', 'true_airspeed', 'xacc', 'yacc', 'zacc']
-            parameters = self._Aircraft_Type_cls.FL_2_mav_state(msg)
-            mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_state_quaternion_message(*parameters).pack(self._dumb_header)
-
+            if(self._quaternion):
+                # HIL State Quaternion Mavlink Message Creation
+                # 'time_usec', 'attitude_quaternion', 'rollspeed', 'pitchspeed', 'yawspeed',
+                # 'lat', 'lon', 'alt', 'vx', 'vy', 'vz', 'ind_airspeed', 'true_airspeed', 'xacc', 'yacc', 'zacc']
+                parameters = self._Aircraft_Type_cls.FL_2_mav_state_quaternion(msg)
+                mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_state_quaternion_message(*parameters).pack(self._dumb_header)
+            else:
+                # HIL State Mavlink Message Creation
+                # 'time_usec', 'roll', 'pitch', 'yaw', 'rollspeed', 'pitchspeed', 'yawspeed',
+                # 'lat', 'lon', 'alt', 'vx', 'vy', 'vz', 'xacc', 'yacc', 'zacc'
+                parameters = self._Aircraft_Type_cls.FL_2_mav_state(msg)
+                #try:
+                mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_state_message(*parameters).pack(self._dumb_header)
+                # except Exception as e:
+                #    pass
         #MavlinkPlug Message Creation
         mavlink_plug_message = mavlinkplug.Message.MAVLinkData.build_full_message_from(
                                                                                         self._mavlink_connection_ident,

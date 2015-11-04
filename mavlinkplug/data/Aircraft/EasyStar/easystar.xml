@@ -675,5 +675,6 @@
             </magnetometer>
         </channel>
     </system>
-
+    <output name="localhost" type="FLIGHTGEAR" protocol="UDP" port="5500" rate="60">
+    </output>
 </fdm_config>

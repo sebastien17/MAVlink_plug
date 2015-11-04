@@ -58,7 +58,7 @@ if(__name__ == '__main__'):
     gc_connection.start()
 
     #Creating HIL environment
-    hil_env = mavlinkplug.Hil.MAVLinkPlugHil(plug.plug_info(), mav_con_01.ident(), mavlinkplug.AircraftType.Plane)
+    hil_env = mavlinkplug.Hil.MAVLinkPlugHil(plug.plug_info(), mav_con_01.ident(), mavlinkplug.AircraftType.Plane, hil_sensor=False, quaternion=False)
 
 
     #Automatic Launch Procedure
