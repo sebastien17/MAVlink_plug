@@ -136,7 +136,8 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
                 data_2_FL = map(str,data_2_FL)
                 msg_2_FL = ' '.join(data_2_FL)
                 #Send to Flight Loop
-                #self._stream_to_FL.send(msg_2_FL)
+                print(msg_2_FL)
+                self._stream_to_FL.send(msg_2_FL)
 
     def _FL_2_plug(self, msg):
         '''
@@ -165,16 +166,21 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
                 # 'time_usec', 'roll', 'pitch', 'yaw', 'rollspeed', 'pitchspeed', 'yawspeed',
                 # 'lat', 'lon', 'alt', 'vx', 'vy', 'vz', 'xacc', 'yacc', 'zacc'
                 parameters = self._Aircraft_Type_cls.FL_2_mav_state(msg)
-                #try:
-                mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_state_message(*parameters).pack(self._dumb_header)
-                # except Exception as e:
-                #    pass
-        #MavlinkPlug Message Creation
-        mavlink_plug_message = mavlinkplug.Message.MAVLinkData.build_full_message_from(
-                                                                                        self._mavlink_connection_ident,
-                                                                                        self._ident,
-                                                                                        long(time()),
-                                                                                        mav_message
-                                                                                        )
-        #Sending MavlinkPLug Message
-        self._stream_to_plug.send(mavlink_plug_message.packed)
+                try:
+                    mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_state_message(*parameters).pack(self._dumb_header)
+                except Exception as e:
+                    print(e.message)
+
+
+        try:
+            #MavlinkPlug Message Creation
+            mavlink_plug_message = mavlinkplug.Message.MAVLinkData.build_full_message_from(
+                                                                                            self._mavlink_connection_ident,
+                                                                                            self._ident,
+                                                                                            long(time()),
+                                                                                            mav_message
+                                                                                            )
+            #Sending MavlinkPLug Message
+            self._stream_to_plug.send(mavlink_plug_message.packed)
+        except Exception as e:
+             print(e.message)

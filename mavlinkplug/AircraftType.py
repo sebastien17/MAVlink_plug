@@ -154,7 +154,7 @@ class AircraftTemplate(multiprocessing.Process):
                         int(temp[2]*cls._ft2m*cls._m2mm),                       # alt            mm          int
                         int(temp[15]*cls._ft2m*cls._m2cm),                      # vx             cm.s-1      int
                         int(temp[16]*cls._ft2m*cls._m2cm),                      # vy             cm.s-1      int
-                        int(temp[17])*cls._ft2m*cls._m2cm,                      # vz             cm.s-1      int
+                        int(temp[17]*cls._ft2m*cls._m2cm),                      # vz             cm.s-1      int
                         int(temp[3]*cls._ft2m*cls._mpss2mg),                    # xacc           1000/g      int
                         int(temp[4]*cls._ft2m*cls._mpss2mg),                    # yacc           1000/9      int
                         int(temp[5]*cls._ft2m*cls._mpss2mg),                    # zacc           1000/g      int
@@ -172,10 +172,14 @@ class Plane(AircraftTemplate):
     ]
 
     JSBSIM_DEFAULT_PATH = path.dirname(__file__) + sep + 'data' + sep
-    MIN_SERVO_PPM = 950
-    MAX_SERVO_PPM = 1800
+    MIN_SERVO_PPM = 990
+    MAX_SERVO_PPM = 2010
+    THR_MIN = 0.0
+    THR_MAX = 1.0
+    CMD_MIN = -1.0
+    CMD_MAX = 1.0
 
-    def __init__(self, zmq_context = None, zmq_in = None, zmq_out = None, daemon = True, lat=43.6042600, lon=1.4436700, terrain_elev_ft = 0, h_agl_ft = 3000, fdm_model = 'EasyStar', jsbsim_root = None, dt = 1.0/20):
+    def __init__(self, zmq_context = None, zmq_in = None, zmq_out = None, daemon = True, lat=43.6042600, lon=1.4436700, terrain_elev_ft = 0, h_agl_ft = 3000, fdm_model = 'c172p', jsbsim_root = None, dt = 1.0/10):
         super(Plane,self).__init__()
         self._zmq_context = zmq_context
         self._zmq_in = zmq_in
@@ -203,7 +207,7 @@ class Plane(AircraftTemplate):
         self._fdm.set_property_value("ic/phi-deg",0.0)                                      # Roll
         self._fdm.set_property_value("ic/theta-deg",0.0)                                    # Pitch
         self._fdm.set_property_value("ic/psi-true-deg",110.0)                               # Heading
-        self._fdm.set_property_value("ic/vt-kts",30)
+        self._fdm.set_property_value("ic/vt-kts",90)
         #Fdm Trim
         self._fdm.do_trim(1)
         # Zmq setup
@@ -219,11 +223,21 @@ class Plane(AircraftTemplate):
     @classmethod
     def cmd_norm(cls, value):
         """
-        Normalize servo output data
+        Normalize servo output data for command
         :param value: raw value of servo output
-        :return:    normalized value of servo output
+        :return:    normalized value of servo output for command
         """
-        return (value - cls.MIN_SERVO_PPM)/(cls.MAX_SERVO_PPM - cls.MIN_SERVO_PPM)
+        value01 = (value - cls.MIN_SERVO_PPM)/(cls.MAX_SERVO_PPM - cls.MIN_SERVO_PPM)
+        return (cls.CMD_MAX - cls.CMD_MIN)*value01 + cls.CMD_MIN
+    @classmethod
+    def thr_norm(cls, value):
+        """
+        Normalize servo output data for throttle
+        :param value: raw value of servo output
+        :return:    normalized value of servo output for throttle
+        """
+        value01 = (value - cls.MIN_SERVO_PPM)/(cls.MAX_SERVO_PPM - cls.MIN_SERVO_PPM)
+        return (cls.THR_MAX - cls.THR_MIN)*value01 + cls.THR_MIN
     @classmethod
     def mav_2_FL(cls, mavlink_msg):
         """
@@ -236,7 +250,7 @@ class Plane(AircraftTemplate):
             return (
                     cls.cmd_norm(float(mavlink_msg.__dict__['servo1_raw'])),
                     cls.cmd_norm(float(mavlink_msg.__dict__['servo2_raw'])),
-                    cls.cmd_norm(float(mavlink_msg.__dict__['servo3_raw'])),
+                    cls.thr_norm(float(mavlink_msg.__dict__['servo3_raw'])),
                     cls.cmd_norm(float(mavlink_msg.__dict__['servo4_raw']))
                     )
         return None
