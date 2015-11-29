@@ -20,8 +20,12 @@
 
 import struct
 from json import dumps
-#For now just available for V1.0 Ardupilot  Message
-import pymavlink.dialects.v10.ardupilotmega as mavlink
+
+# Managing Mavlink dialect
+import mavlinkplug
+print('Importing ' + mavlinkplug._MAVLINKPLUG_DIALECT)
+mavlink = __import__('pymavlink.dialects.v10.' + mavlinkplug._MAVLINKPLUG_DIALECT, globals(), locals(), [], -1)
+
 #import pymavlink.dialects.v10.pixhawk as mavlink
 from pymavlink.generator.mavcrc import x25crc
 from mavlinkplug.Exception import MAVlinkPlugException 

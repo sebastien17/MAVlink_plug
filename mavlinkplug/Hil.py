@@ -136,7 +136,6 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
                 data_2_FL = map(str,data_2_FL)
                 msg_2_FL = ' '.join(data_2_FL)
                 #Send to Flight Loop
-                print(msg_2_FL)
                 self._stream_to_FL.send(msg_2_FL)
 
     def _FL_2_plug(self, msg):

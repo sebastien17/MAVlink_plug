@@ -32,6 +32,7 @@ class AircraftTemplate(multiprocessing.Process):
     _g = 9.80665
     _sec2usec = 1.0e6
     _rad2degE7 = 1.0e7*180.0/pi
+    _deg2rad = pi/180.0
     _m2mm = 1000.0
     _m2cm = 100.0
     _ft2m = 0.3048
@@ -46,9 +47,9 @@ class AircraftTemplate(multiprocessing.Process):
         'accelerations/udot-ft_sec2',   #3
         'accelerations/vdot-ft_sec2',   #4
         'accelerations/wdot-ft_sec2',   #5
-        'velocities/p-aero-rad_sec',    #6
-        'velocities/q-aero-rad_sec',    #7
-        'velocities/r-aero-rad_sec',    #8
+        'velocities/phidot-rad_sec',    #6
+        'velocities/thetadot-rad_sec',  #7
+        'velocities/psidot-rad_sec',    #8
         'atmosphere/P-psf',             #9
         'atmosphere/pressure-altitude', #10
         'attitude/heading-true-rad',    #11
@@ -63,7 +64,8 @@ class AircraftTemplate(multiprocessing.Process):
         'velocities/vc-fps',            #19
         'attitude/phi-rad',             #20
         'attitude/theta-rad',           #21
-        'attitude/psi-rad'              #22
+        'attitude/psi-rad',             #22
+        'simulation/sim-time-sec'       #23
     ]
     @staticmethod
     def attitude_quaternion(cls, phi, theta, psi):
@@ -142,7 +144,7 @@ class AircraftTemplate(multiprocessing.Process):
 
         #Data treatment
         messagedata  = [
-                        int(time()*cls._sec2usec),                              # time           usec
+                        int(temp[23]*cls._sec2usec),                            # time           usec
                         temp[20],                                               # phi            rad         float
                         temp[21],                                               # theta          rad         float
                         temp[22],                                               # psi            rad         float
@@ -179,14 +181,14 @@ class Plane(AircraftTemplate):
     CMD_MIN = -1.0
     CMD_MAX = 1.0
 
-    def __init__(self, zmq_context = None, zmq_in = None, zmq_out = None, daemon = True, lat=43.6042600, lon=1.4436700, terrain_elev_ft = 0, h_agl_ft = 3000, fdm_model = 'c172p', jsbsim_root = None, dt = 1.0/10):
+    def __init__(self, zmq_context = None, zmq_in = None, zmq_out = None, daemon = True, lat=43.6042600, lon=1.4436700, terrain_elev_ft = 400, h_agl_ft = 10000, fdm_model = 'c172p', jsbsim_root = None, dt = 1.0/30):
         super(Plane,self).__init__()
         self._zmq_context = zmq_context
         self._zmq_in = zmq_in
         self._zmq_out = zmq_out
         self.daemon = daemon
-        self._lat_rad = lat
-        self._long_rad = lon
+        self._lat_rad = lat*self._deg2rad
+        self._long_rad = lon*self._deg2rad
         self._terrain_elev_ft = terrain_elev_ft
         self._h_agl_ft = h_agl_ft
         self._fdm_model = fdm_model
@@ -205,11 +207,11 @@ class Plane(AircraftTemplate):
         self._fdm.set_property_value("ic/terrain-elevation-ft", self._terrain_elev_ft)
         self._fdm.set_property_value("ic/h-agl-ft",self._h_agl_ft)
         self._fdm.set_property_value("ic/phi-deg",0.0)                                      # Roll
-        self._fdm.set_property_value("ic/theta-deg",0.0)                                    # Pitch
+        # self._fdm.set_property_value("ic/theta-deg",0.0)                                    # Pitch
         self._fdm.set_property_value("ic/psi-true-deg",110.0)                               # Heading
         self._fdm.set_property_value("ic/vt-kts",90)
         #Fdm Trim
-        self._fdm.do_trim(1)
+        #self._fdm.do_trim(1)
         # Zmq setup
         if(self._zmq_context == None):
             self._zmq_context = Context()
@@ -227,6 +229,7 @@ class Plane(AircraftTemplate):
         :param value: raw value of servo output
         :return:    normalized value of servo output for command
         """
+        value = float(value)
         value01 = (value - cls.MIN_SERVO_PPM)/(cls.MAX_SERVO_PPM - cls.MIN_SERVO_PPM)
         return (cls.CMD_MAX - cls.CMD_MIN)*value01 + cls.CMD_MIN
     @classmethod
@@ -236,6 +239,7 @@ class Plane(AircraftTemplate):
         :param value: raw value of servo output
         :return:    normalized value of servo output for throttle
         """
+        value = float(value)
         value01 = (value - cls.MIN_SERVO_PPM)/(cls.MAX_SERVO_PPM - cls.MIN_SERVO_PPM)
         return (cls.THR_MAX - cls.THR_MIN)*value01 + cls.THR_MIN
     @classmethod
@@ -248,9 +252,9 @@ class Plane(AircraftTemplate):
         """
         if(mavlink_msg.get_type() == 'SERVO_OUTPUT_RAW'):
             return (
-                    cls.cmd_norm(float(mavlink_msg.__dict__['servo1_raw'])),
-                    cls.cmd_norm(float(mavlink_msg.__dict__['servo2_raw'])),
-                    cls.thr_norm(float(mavlink_msg.__dict__['servo3_raw'])),
-                    cls.cmd_norm(float(mavlink_msg.__dict__['servo4_raw']))
+                    -cls.cmd_norm(mavlink_msg.__dict__['servo1_raw']),
+                    cls.cmd_norm(mavlink_msg.__dict__['servo2_raw']),
+                    cls.thr_norm(mavlink_msg.__dict__['servo3_raw']),
+                    cls.cmd_norm(mavlink_msg.__dict__['servo4_raw'])
                     )
         return None

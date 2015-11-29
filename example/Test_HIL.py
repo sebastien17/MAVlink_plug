@@ -50,7 +50,7 @@ if(__name__ == '__main__'):
     file_output.start()
 
     #Set a mavlink connection with  MAVlink ready devices
-    mav_con_01 = mavlinkplug.Module.MAVlinkPlugConnection(plug.plug_info(),'COM3',dialect='ardupilotmega',baud=115200)
+    mav_con_01 = mavlinkplug.Module.MAVlinkPlugConnection(plug.plug_info(),'COM4',dialect='ardupilotmega',baud=115200)
     mav_con_01.start() #Mavlink connection start
 
     #Set a connection for GC
