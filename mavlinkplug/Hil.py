@@ -1,28 +1,28 @@
 #!/usr/bin/env python
-#	-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-#	This file is part of MAVlinkplug.
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# This file is part of MAVlinkplug.
 
-#	MAVlinkplug is free software: you can redistribute it and/or modify
-#	it under the terms of the GNU General Public License as published by
-#	the Free Software Foundation, either version 3 of the License, or
-#	(at your option) any later version.
+# MAVlinkplug is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 
-#	MAVlinkplug is distributed in the hope that it will be useful,
-#	but WITHOUT ANY WARRANTY; without even the implied warranty of
-#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#	GNU General Public License for more details.
+# MAVlinkplug is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 
-#	You should have received a copy of the GNU General Public License
-#	along with MAVlinkplug.  If not, see <http://www.gnu.org/licenses/>.
-#	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# You should have received a copy of the GNU General Public License
+# along with MAVlinkplug.  If not, see <http://www.gnu.org/licenses/>.
+# %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 from __future__ import print_function
-import zmq, logging
+import zmq, logging, math
 from time import sleep, time
 from mavlinkplug.Base import MAVLinkPlugZmqBase
-import  mavlinkplug.Message
+import  mavlinkplug.Message, mavlinkplug.Tools
 
 
 class MAVLinkPlugHil(MAVLinkPlugZmqBase):
@@ -41,6 +41,8 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         self._hb_count = 0
         self._hil_sensor = hil_sensor
         self._quaternion = quaternion
+        self._thermal_wind = 0
+        self._thermal_list = []
 
     def setup(self):
         super(MAVLinkPlugHil,self).setup()
@@ -159,7 +161,12 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
                 # 'time_usec', 'attitude_quaternion', 'rollspeed', 'pitchspeed', 'yawspeed',
                 # 'lat', 'lon', 'alt', 'vx', 'vy', 'vz', 'ind_airspeed', 'true_airspeed', 'xacc', 'yacc', 'zacc']
                 parameters = self._Aircraft_Type_cls.FL_2_mav_state_quaternion(msg)
-                mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_state_quaternion_message(*parameters).pack(self._dumb_header)
+                try:
+                    mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_state_quaternion_message(*parameters).pack(self._dumb_header)
+                except Exception as e:
+                    print(e.message)
+                else:
+                    deg_coordinates_tuple = (parameters[5], parameters[6])
             else:
                 # HIL State Mavlink Message Creation
                 # 'time_usec', 'roll', 'pitch', 'yaw', 'rollspeed', 'pitchspeed', 'yawspeed',
@@ -169,7 +176,8 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
                     mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_state_message(*parameters).pack(self._dumb_header)
                 except Exception as e:
                     print(e.message)
-
+                else:
+                    deg_coordinates_tuple = (parameters[5], parameters[6])
 
         try:
             #MavlinkPlug Message Creation
@@ -183,3 +191,23 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
             self._stream_to_plug.send(mavlink_plug_message.packed)
         except Exception as e:
              print(e.message)
+        else:
+            self._thermals_management(deg_coordinates_tuple)
+
+    def add_thermal(self, deg_lat_long):
+        self._thermal_list.append(deg_lat_long)
+
+    def _thermals_management(self, deg_coordinates_tuple):
+        self._thermal_wind = 0
+        for thermal in self._thermal_list:
+            self._thermal_wind += self._thermal_results(mavlinkplug.Tools.distance_from_coordinates_degrees(thermal, deg_coordinates_tuple))
+
+    def _thermal_results(distance):
+        d = 100 # Thermal radius with positive vertical wind
+
+        # Very simple model
+        if (distance <= 2*d):
+            result = math.cos(math.pi*distance/(2*d))
+        else:
+            result = 0.0
+        return result
