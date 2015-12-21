@@ -18,7 +18,7 @@
 #	along with MAVlinkplug.  If not, see <http://www.gnu.org/licenses/>.
 #	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-from mavlinkplug.Exception import MAVlinkPlugException
+from mavlinkplug.Exception import Exception
 from struct import pack
 
 _PACK_FORMAT = '!B'
@@ -33,7 +33,7 @@ class _MetaClassList(type):
         elif(name.endswith('_P')):
             return pack(_PACK_FORMAT, cls.__getattr__(name[:-2]))
         else:
-            raise MAVlinkPlugException('MSG_PLUG_TYPE {0} not existing'.format(name))
+            raise Exception('MSG_PLUG_TYPE {0} not existing'.format(name))
     def __contains__(cls, item):
         return True if(item in cls._clist) else False
 

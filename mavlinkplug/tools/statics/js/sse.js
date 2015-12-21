@@ -104,10 +104,10 @@ function init_cesiumjs(){
         animation: false, 
         navigationHelpButton : false,
         baseLayerPicker : false,
-        imageryProvider : new Cesium.BingMapsImageryProvider({
+        /*imageryProvider : new Cesium.BingMapsImageryProvider({
             url : '//dev.virtualearth.net',
             //key : 'get-yours-at-https://www.bingmapsportal.com/',
-            mapStyle : Cesium.BingMapsStyle.AERIAL_WITH_LABELS
+            mapStyle : Cesium.BingMapsStyle.AERIAL_WITH_LABELS*/
         })
     });
     cjs.scene = cjs.viewer.scene;

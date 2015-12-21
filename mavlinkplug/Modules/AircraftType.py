@@ -67,7 +67,8 @@ class AircraftTemplate(multiprocessing.Process):
         'attitude/psi-rad',             #22
         'simulation/sim-time-sec'       #23
     ]
-    @staticmethod
+
+    @classmethod
     def attitude_quaternion(cls, phi, theta, psi):
         return [
             cos(phi/2)*cos(theta/2)*cos(psi/2)+sin(phi/2)*sin(theta/2)*sin(psi/2),
@@ -170,7 +171,10 @@ class Plane(AircraftTemplate):
     'fcs/aileron-cmd-norm',
     'fcs/elevator-cmd-norm',
     'fcs/rudder-cmd-norm',
-    'fcs/throttle-cmd-norm'
+    'fcs/throttle-cmd-norm',
+    'atmosphere/wind-north-fps',
+    'atmosphere/wind-east-fps',
+    'atmosphere/wind-down-fps'
     ]
 
     JSBSIM_DEFAULT_PATH = path.dirname(__file__) + sep + 'data' + sep
@@ -243,7 +247,7 @@ class Plane(AircraftTemplate):
         value01 = (value - cls.MIN_SERVO_PPM)/(cls.MAX_SERVO_PPM - cls.MIN_SERVO_PPM)
         return (cls.THR_MAX - cls.THR_MIN)*value01 + cls.THR_MIN
     @classmethod
-    def mav_2_FL(cls, mavlink_msg):
+    def mav_2_FL(cls, mavlink_msg, wind_data):
         """
         Adapt parameters from SERVO_OUTPUT_RAW type MAVlink message to FL (JSBsim)
         Class method for multiprocess purpose
@@ -255,6 +259,9 @@ class Plane(AircraftTemplate):
                     -cls.cmd_norm(mavlink_msg.__dict__['servo1_raw']),
                     cls.cmd_norm(mavlink_msg.__dict__['servo2_raw']),
                     cls.thr_norm(mavlink_msg.__dict__['servo3_raw']),
-                    cls.cmd_norm(mavlink_msg.__dict__['servo4_raw'])
+                    cls.cmd_norm(mavlink_msg.__dict__['servo4_raw']),
+                    wind_data[0],
+                    wind_data[1],
+                    wind_data[2],
                     )
         return None

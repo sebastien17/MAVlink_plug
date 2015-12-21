@@ -19,21 +19,20 @@
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 from __future__ import print_function
-import zmq, logging, math
+import zmq, math
 from time import sleep, time
-from mavlinkplug.Base import MAVLinkPlugZmqBase
+from mavlinkplug.Base import ZmqBase
 import  mavlinkplug.Message, mavlinkplug.Tools
 
 
-class MAVLinkPlugHil(MAVLinkPlugZmqBase):
-    def __init__(self, module_info, mavlink_connection_ident, Aircraft_Type_cls, hil_sensor=True, quaternion=True):
-        super(MAVLinkPlugHil, self).__init__()
+class Hil(ZmqBase):
+    def __init__(self, module_info, mavlink_connection_ident, Aircraft_Type_cls, hil_sensor=True, quaternion=True, name=None):
+        super(Hil, self).__init__()
         self._mavlink_connection_ident = mavlink_connection_ident
         self._addr_to_plug, self._addr_from_plug, self._ident =  module_info
         self._addr_to_FL = 'tcp://127.0.0.1:45063'
         self._addr_from_FL = 'tcp://127.0.0.1:45064'
         self._Aircraft_Type_cls = Aircraft_Type_cls
-        self.daemon = False
         self._default_subscribe.append(mavlinkplug.Message.integer_pack(self._ident))
         self._dumb_header = mavlinkplug.Message.mavlink.MAVLink_header(0)
         self._FL_loop_p = None
@@ -41,11 +40,14 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         self._hb_count = 0
         self._hil_sensor = hil_sensor
         self._quaternion = quaternion
-        self._thermal_wind = 0
+        self._thermal_wind_NED = (0.0, 0.0, 0.0)
         self._thermal_list = []
-
+        if(name == None ):
+            self._name = 'FileWriter_' + self._ident
+        else:
+            self._name = name
     def setup(self):
-        super(MAVLinkPlugHil,self).setup()
+        super(Hil, self).setup()
         # Initializing message callback
         # Define stream listening from plug
         self.stream(zmq.SUB, self._addr_from_plug, bind = False, callback = self._plug_2_FL)
@@ -54,7 +56,7 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         #Define stream listening from FL
         self.stream(zmq.SUB, self._addr_from_FL, callback = self._FL_2_plug, subscribe = [b''])
         #Define stream publishing to plug
-        self._stream_to_plug  = self.stream(zmq.PUB, self._addr_to_plug, bind = False)
+        self._stream2Plug  = self.stream(zmq.PUB, self._addr_to_plug, bind = False)
 
     def _get_MAVlink_Plug_Message(selfself, msg):
         _msg = msg[0] #get the first (and only) part of the message
@@ -77,43 +79,43 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
                 self._phase_INIT()
 
     def _phase_INIT(self):
-        logging.info('INIT phase start')
+        self._logging('INIT phase start')
         self._FL_loop_p = self._Aircraft_Type_cls(zmq_in = self._addr_to_FL, zmq_out = self._addr_from_FL, lat = 43.6042600, lon = 1.4436700) # Toulouse, France
-        logging.info('INIT phase end')
+        self._logging('INIT phase end')
         self._phase = 7 #Go to WAIT_FOR_ALIVE
 
     def _phase_WAIT_FOR_ALIVE(self,msg):
         if(self._hb_count == 0):
-            logging.info('WAIT_FOR_ALIVE phase start')
+            self._logging('WAIT_FOR_ALIVE phase start')
         if(msg.header.type == mavlinkplug.Message.TYPE.MAV_MSG.value and msg.data.value.get_type() == 'HEARTBEAT'):
             self._hb_count += 1
         if(self._hb_count == 10):
             self._hb_count = 0
             self._phase = 11 #Go to RESET
-            logging.info('WAIT_FOR_ALIVE phase end')
+            self._logging('WAIT_FOR_ALIVE phase end')
 
     def _phase_RESET(self):
-        logging.info('RESET phase start')
+        self._logging('RESET phase start')
 
         #MavlinkPlug Command Message Creation
         _header = mavlinkplug.Message.Header().build_from(self._mavlink_connection_ident,self._ident,mavlinkplug.Message.TYPE.MAV_COMMAND.value,long(time()))
         _data = mavlinkplug.Message.MavCommandData().build_from('SET_HIL_ARM')
         _mavlink_plug_command_message = mavlinkplug.Message.Message().build_from(_header,_data)
-        self._stream_to_plug.send(_mavlink_plug_command_message.packed)
+        self._stream2Plug.send(_mavlink_plug_command_message.packed)
 
         sleep(1)
 
         #MavlinkPlug Command Message Creation
         _data = mavlinkplug.Message.MavCommandData().build_from('RESET')
         _mavlink_plug_command_message = mavlinkplug.Message.Message().build_from(_header,_data)
-        self._stream_to_plug.send(_mavlink_plug_command_message.packed)
+        self._stream2Plug.send(_mavlink_plug_command_message.packed)
 
-        logging.info('RESET phase end')
+        self._logging('RESET phase end')
         self._phase = 13 #Go to WAIT_FOR_ALIVE
 
     def _phase_WAIT_HB(self,msg):
         if(self._hb_count == 0):
-            logging.info('WAIT_HB phase start')
+            self._logging('WAIT_HB phase start')
         if(msg.header.type == mavlinkplug.Message.TYPE.MAV_MSG.value and msg.data.value.get_type() == 'HEARTBEAT'):
             self._hb_count += 1
         if(self._hb_count == 5):
@@ -121,7 +123,7 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
             self._FL_loop_p.start()
             self._phase = 17 #Go to RESET
 
-            logging.info('WAIT_HB phase end')
+            self._logging('WAIT_HB phase end')
 
     def _phase_RUN(self,msg):
         '''
@@ -132,7 +134,7 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
         '''
 
         if(msg.header.type == mavlinkplug.Message.TYPE.MAV_MSG.value):
-            data_2_FL = self._Aircraft_Type_cls.mav_2_FL(msg.data.value)
+            data_2_FL = self._Aircraft_Type_cls.mav_2_FL(msg.data.value, self._thermal_wind_NED)
             if(data_2_FL != None):
                 #Stringify
                 data_2_FL = map(str,data_2_FL)
@@ -177,7 +179,7 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
                 except Exception as e:
                     print(e.message)
                 else:
-                    deg_coordinates_tuple = (parameters[5], parameters[6])
+                    self._deg_coordinates_tuple = (parameters[5], parameters[6])
 
         try:
             #MavlinkPlug Message Creation
@@ -188,26 +190,40 @@ class MAVLinkPlugHil(MAVLinkPlugZmqBase):
                                                                                             mav_message
                                                                                             )
             #Sending MavlinkPLug Message
-            self._stream_to_plug.send(mavlink_plug_message.packed)
+            self._stream2Plug.send(mavlink_plug_message.packed)
         except Exception as e:
              print(e.message)
         else:
             self._thermals_management(deg_coordinates_tuple)
 
-    def add_thermal(self, deg_lat_long):
-        self._thermal_list.append(deg_lat_long)
+    def add_thermal(self, deg_lat_long_tuple, amplitude, D_param):
+        self._thermal_list.append(tuple(deg_lat_long_tuple, amplitude, D_param))
 
     def _thermals_management(self, deg_coordinates_tuple):
-        self._thermal_wind = 0
-        for thermal in self._thermal_list:
-            self._thermal_wind += self._thermal_results(mavlinkplug.Tools.distance_from_coordinates_degrees(thermal, deg_coordinates_tuple))
+        self._thermal_wind_NED = (0.0, 0.0, 0.0)
 
-    def _thermal_results(distance):
-        d = 100 # Thermal radius with positive vertical wind
+        def myadd(xs,ys):
+            return tuple(x + y for x, y in zip(xs, ys))
+
+        for thermal in self._thermal_list:
+            self._thermal_wind_NED = myadd(self._thermal_results(thermal), self._thermal_wind_NED)
+
+    def _thermal_results(self, thermal):
+        distance = mavlinkplug.Tools.distance_from_coordinates_degrees(thermal[0], self._deg_coordinates_tuple)
+        d = thermal[2] # Thermal radius with positive vertical wind in meters : D_param
+        amplitude = thermal[1]
 
         # Very simple model
         if (distance <= 2*d):
-            result = math.cos(math.pi*distance/(2*d))
+            result = (0.0, 0.0, -amplitude*math.cos(math.pi*distance/(2*d)))
         else:
-            result = 0.0
+            result = (0.0, 0.0, 0.0)
         return result
+
+    def _logging(self, msg, type = 'INFO'):
+         logging_message = mavlinkplug.Message.LogData.build_full_message_from( 0,
+                                                                                self._ident,
+                                                                                long(time()),
+                                                                                type+': '+ msg
+                                                                                )
+         self._stream2Plug.send(logging_message.packed)

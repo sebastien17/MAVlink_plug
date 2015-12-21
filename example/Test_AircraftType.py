@@ -22,14 +22,13 @@ _LOG = True
 
 if(__name__ == '__main__'):
 
-    from time import sleep
     import logging
     
     #Internal module
-    import mavlinkplug.Module
+    import mavlinkplug.Modules.Module
     import mavlinkplug.Plug
-    import mavlinkplug.AircraftType
-    import mavlinkplug.Hil
+    import mavlinkplug.Modules.AircraftType
+    import mavlinkplug.Modules.Hil
     
 
     #Handling logging options
@@ -46,11 +45,11 @@ if(__name__ == '__main__'):
     plug.start()
 
     #Set a output file
-    file_output = mavlinkplug.Module.MAVlinkPlugFileWriter(plug.plug_info(),'Test_AircraftType.log')
+    file_output = mavlinkplug.Modules.Module.MAVlinkPlugFileWriter(plug.plug_info(), 'Test_AircraftType.log')
     file_output.start()
 
     #Creating HIL environment
-    hil_env = mavlinkplug.Hil.MAVLinkPlugHil(plug.plug_info(), 17, mavlinkplug.AircraftType.Plane)
+    hil_env = mavlinkplug.Modules.Hil.Hil(plug.plug_info(), 17, mavlinkplug.Modules.AircraftType.Plane)
     
     hil_env.FL_initialize() #Flight loop start
     hil_env.start() #HIL start

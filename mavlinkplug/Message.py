@@ -28,7 +28,7 @@ mavlink = __import__('pymavlink.dialects.v10.' + mavlinkplug._MAVLINKPLUG_DIALEC
 
 #import pymavlink.dialects.v10.pixhawk as mavlink
 from pymavlink.generator.mavcrc import x25crc
-from mavlinkplug.Exception import MAVlinkPlugException 
+from mavlinkplug.Exception import Exception
 from collections import namedtuple
 
 #Data classes
@@ -43,7 +43,7 @@ class RawData(object):
     @property
     def value(self):
         if(self._value == None):
-            raise MAVlinkPlugException('Invalid value : value not define')
+            raise Exception('Invalid value : value not define')
         else:
             return self._value
     @value.setter
@@ -70,7 +70,7 @@ class MAVLinkData(RawData):
     @property
     def value(self):
         if(self._value == None):
-            raise MAVlinkPlugException('Invalid value : value not define')
+            raise Exception('Invalid value : value not define')
         else:
             return self._value
     @value.setter
@@ -101,13 +101,13 @@ class MAVLinkData(RawData):
         try:
             magic, mlen, seq, srcSystem, srcComponent, msgId = struct.unpack('cBBBBB', msgbuf[:6])
         except struct.error as emsg:
-            raise MAVlinkPlugException('Unable to unpack MAVLink header: %s' % emsg)
+            raise Exception('Unable to unpack MAVLink header: %s' % emsg)
         if ord(magic) != 254:
-            raise MAVlinkPlugException("invalid MAVLink prefix '%s'" % magic)
+            raise Exception("invalid MAVLink prefix '%s'" % magic)
         if mlen != len(msgbuf)-8:
-            raise MAVlinkPlugException('invalid MAVLink message length. Got %u expected %u, msgId=%u' % (len(msgbuf)-8, mlen, msgId))
+            raise Exception('invalid MAVLink message length. Got %u expected %u, msgId=%u' % (len(msgbuf) - 8, mlen, msgId))
         if not msgId in mavlink.mavlink_map:
-            raise MAVlinkPlugException('unknown MAVLink message ID %u' % msgId)
+            raise Exception('unknown MAVLink message ID %u' % msgId)
 
         # decode the payload
         type = mavlink.mavlink_map[msgId]
@@ -120,17 +120,17 @@ class MAVLinkData(RawData):
         try:
             crc, = struct.unpack('<H', msgbuf[-2:])
         except struct.error as emsg:
-            raise MAVlinkPlugException('Unable to unpack MAVLink CRC: %s' % emsg)
+            raise Exception('Unable to unpack MAVLink CRC: %s' % emsg)
         crcbuf = msgbuf[1:-2]
         crcbuf = crcbuf + struct.pack('B',crc_extra)
         crc2 = x25crc(crcbuf)
         if crc != crc2.crc:
-            raise MAVlinkPlugException('invalid MAVLink CRC in msgID %u 0x%04x should be 0x%04x' % (msgId, crc, crc2.crc))
+            raise Exception('invalid MAVLink CRC in msgID %u 0x%04x should be 0x%04x' % (msgId, crc, crc2.crc))
 
         try:
             t = struct.unpack(fmt, msgbuf[6:-2])
         except struct.error as emsg:
-            raise MAVlinkPlugException('Unable to unpack MAVLink payload type=%s fmt=%s payloadLength=%u: %s' % (
+            raise Exception('Unable to unpack MAVLink payload type=%s fmt=%s payloadLength=%u: %s' % (
                 type, fmt, len(msgbuf[6:-2]), emsg))
 
         tlist = list(t)
@@ -163,7 +163,7 @@ class MAVLinkData(RawData):
         try:
             m = type(*t)
         except Exception as emsg:
-            raise MAVlinkPlugException('Unable to instantiate MAVLink message of type %s : %s' % (type, emsg))
+            raise Exception('Unable to instantiate MAVLink message of type %s : %s' % (type, emsg))
         m._msgbuf = msgbuf
         m._payload = msgbuf[6:-2]
         m._crc = crc
@@ -172,11 +172,16 @@ class MAVLinkData(RawData):
         return m
 
 class MavCommandData(RawData):
+    _type = 'MavCommandData'
     pass
 
 class KillData(RawData):
+    _type = 'KillData'
     pass
 
+class LogData(RawData):
+    _type = 'LogData'
+    pass
 
 class TypeContainer(object):
     #Class attributes
@@ -184,7 +189,8 @@ class TypeContainer(object):
         ['MAV_MSG', 1, MAVLinkData],
         ['MAV_COMMAND', 2, MavCommandData],
         ['KILL', 4, KillData],
-        ['RAW',8, RawData]
+        ['RAW',8, RawData],
+        ['LOG_DATA',16, LogData]
     ]
     TypeItem = namedtuple('TypeItem', ['value','p_value','m_class'])
 
@@ -209,7 +215,7 @@ class TypeContainer(object):
         if(name in self._names):
             return self.TypeItem(self._values[self._names.index(name)], self._p_values[self._names.index(name)], self._m_classes[self._names.index(name)])
         else:
-            raise MAVlinkPlugException('Message Type {0} not defined'.format(name))
+            raise Exception('Message Type {0} not defined'.format(name))
     def get_class_from_value(self, p_value):
         return self._get_X_from_Y(p_value, self._m_classes, self._values)
     def get_class_from_p_value(self, p_value):
@@ -220,7 +226,7 @@ class TypeContainer(object):
         if(value in Y_table):
             return  X_table[Y_table.index(value)]
         else:
-            raise MAVlinkPlugException('Message Type search item not defined'.format(value))
+            raise Exception('Message Type search item not defined'.format(value))
 
 class DestinationContainer(object):
     _destination_description = [
@@ -241,7 +247,7 @@ class DestinationContainer(object):
         if(name in self._names):
             return self.DestinationItem(self._values[self._names.index(name)], self._p_values[self._names.index(name)])
         else:
-            raise MAVlinkPlugException('Message Destination {0} not defined'.format(name))
+            raise Exception('Message Destination {0} not defined'.format(name))
 
 TYPE = TypeContainer()
 DESTINATION = DestinationContainer()
@@ -259,52 +265,52 @@ class Header(object):
     @property
     def destination(self):
         if(self._destination == None):
-            raise MAVlinkPlugException('Invalid header data : destination not define')
+            raise Exception('Invalid header data : destination not define')
         else:
             return self._destination
     @destination.setter
     def destination(self, destination):
         if( not isinstance(destination, int) or destination < 0 or destination > 255):
-            raise MAVlinkPlugException('Invalid header destination set value: {0}'.format(destination))
+            raise Exception('Invalid header destination set value: {0}'.format(destination))
         else:
             self._destination = destination
     #Source property
     @property
     def source(self):
         if(self._source == None):
-            raise MAVlinkPlugException('Invalid header data : source not define')
+            raise Exception('Invalid header data : source not define')
         else:
             return self._source
     @source.setter
     def source(self, source):
         if( not isinstance(source, int) or source < 0 or source > 255):
-            raise MAVlinkPlugException('Invalid header source set value: {0}'.format(source))
+            raise Exception('Invalid header source set value: {0}'.format(source))
         else:
             self._source = source
     #Type property
     @property
     def type(self):
         if(self._type == None):
-            raise MAVlinkPlugException('Invalid header data : type not define')
+            raise Exception('Invalid header data : type not define')
         else:
             return self._type
     @type.setter
     def type(self, type):
         if( not type in TYPE.values):
-            raise MAVlinkPlugException('Invalid header type set value: {0}'.format(type))
+            raise Exception('Invalid header type set value: {0}'.format(type))
         else:
             self._type = type
     #Timestamp property
     @property
     def timestamp(self):
         if(self._timestamp == None):
-            raise MAVlinkPlugException('Invalid header data : timestamp not define')
+            raise Exception('Invalid header data : timestamp not define')
         else:
             return self._timestamp
     @timestamp.setter
     def timestamp(self, timestamp):
         if(timestamp < 0):
-            raise MAVlinkPlugException('Invalid header timestamp set value: {0}'.format(timestamp))
+            raise Exception('Invalid header timestamp set value: {0}'.format(timestamp))
         else:
             self._timestamp = timestamp
     #Packed property
@@ -332,13 +338,13 @@ class Message(object):
     @property
     def data(self):
         if(self._data == None):
-            raise MAVlinkPlugException('Invalid Data : data not define')
+            raise Exception('Invalid Data : data not define')
         else:
             return self._data
     @data.setter
     def data(self,value):
         if(self._header == None):
-            raise MAVlinkPlugException('Invalid Header : header has to be define ahead of data')
+            raise Exception('Invalid Header : header has to be define ahead of data')
         else:
             #self._data need to contain data class instance
             #header type  must match data type
@@ -347,7 +353,7 @@ class Message(object):
     @property
     def header(self):
         if(self._header == None):
-            raise MAVlinkPlugException('Invalid Header : header not define')
+            raise Exception('Invalid Header : header not define')
         else:
             return self._header
     @header.setter
@@ -356,7 +362,7 @@ class Message(object):
         if(type(value) == type(Header())):
             self._header = value
         else:
-            raise MAVlinkPlugException('Invalid Header : object is not an instance of Header class')
+            raise Exception('Invalid Header : object is not an instance of Header class')
     @property
     def packed(self):
         return self.header.packed + self.data.packed

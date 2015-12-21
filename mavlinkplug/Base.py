@@ -20,7 +20,7 @@
 
 from __future__ import print_function
 from zmq.eventloop import ioloop, zmqstream
-import zmq, multiprocessing, threading, logging
+import zmq, multiprocessing, threading
 import mavlinkplug.Message
 
 
@@ -38,16 +38,15 @@ def in_thread(isDaemon = True):
         return wrapper
     return base_in_thread
 
-class MAVLinkPlugZmqBase(multiprocessing.Process):
+class ZmqBase(multiprocessing.Process):
     '''
     This is the base for all processes and offers utility functions
     for creating new streams.
     '''
     def __init__(self, zmq_context = None):
-        super(MAVLinkPlugZmqBase,self).__init__()
+        super(ZmqBase, self).__init__()
         self._zmq_context =  zmq_context
         self._loop = None
-        self.daemon = True
         self._ident = None
         self._default_subscribe = [mavlinkplug.Message.DESTINATION.ALL.p_value]
     def setup(self):
@@ -74,13 +73,12 @@ class MAVLinkPlugZmqBase(multiprocessing.Process):
         self.setup()
         self._loop.start()
     def stop(self):
-        logging.info('Stopping')
+        self._logging.info('Stopping')
         self.terminate()
-    def insert_ident(self, string):
-        return self._name + ' {0} : '.format(self._ident)
+    def _logging(self, msg):
+        pass
 
-        
-class MAVLinkPlugModBase(object):
+class ModBase(object):
     ''' Base class for all mods'''
     def __init__(self):
         self._run = False
@@ -104,5 +102,3 @@ class MAVLinkPlugModBase(object):
     def info(self):
         '''Return connection information'''
         return {}
-    def insert_ident(self, string):
-        return self._name + ' {0} : '.format(self._ident)

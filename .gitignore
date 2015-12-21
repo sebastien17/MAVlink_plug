@@ -18,7 +18,7 @@ __pycache__/*
 .idea
 venv/*
 activate.bat
-mavlinkplug/tools/statics/vendor/cesiumjs/*
+
 
 # Package files
 *.egg
