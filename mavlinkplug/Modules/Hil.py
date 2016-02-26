@@ -210,12 +210,12 @@ class Hil(ZmqBase):
 
     def _thermal_results(self, thermal):
         distance = mavlinkplug.Tools.distance_from_coordinates_degrees(thermal[0], self._deg_coordinates_tuple)
-        d = thermal[2] # Thermal radius with positive vertical wind in meters : D_param
+        D = thermal[2] # Thermal radius with positive vertical wind in meters : D_param
         amplitude = thermal[1]
 
         # Very simple model
-        if (distance <= 2*d):
-            result = (0.0, 0.0, -amplitude*math.cos(math.pi*distance/(2*d)))
+        if (distance <= 7*D):
+            result = (0.0, 0.0, -amplitude*2*math.exp(-distance/D))
         else:
             result = (0.0, 0.0, 0.0)
         return result
