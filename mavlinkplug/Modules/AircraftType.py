@@ -26,11 +26,12 @@ from pyfdm import fdmexec
 from pyfdm.exchange import zmq_exchange
 from zmq import Context
 from time import time
-from math import cos, sin, pi
+from math import cos, sin, pi, sqrt
 
 class AircraftTemplate(multiprocessing.Process):
     _g = 9.80665
     _sec2usec = 1.0e6
+    _sec2msec = 1.0e3
     _rad2degE7 = 1.0e7*180.0/pi
     _deg2rad = pi/180.0
     _m2mm = 1000.0
@@ -75,95 +76,114 @@ class AircraftTemplate(multiprocessing.Process):
             sin(phi/2)*cos(theta/2)*cos(psi/2)-cos(phi/2)*sin(theta/2)*sin(psi/2),
             cos(phi/2)*sin(theta/2)*cos(psi/2)+sin(phi/2)*cos(theta/2)*sin(psi/2),
             cos(phi/2)*cos(theta/2)*sin(psi/2)-sin(phi/2)*sin(theta/2)*cos(psi/2)
-            ]
+               ]
     @classmethod
-    def FL_2_mav_sensor(cls, string):
+    def FL_2_mav_sensor(cls, msg):
         """
         Translate output "data_out" to parameter for MAVLink_hil_sensor_message Pymavlink function
         :param string: ZMQ message string including  _data_out values (Human Readable)
         :return: function parameter for mavlink message "MAVLink_hil_sensor_message"
         """
-        temp = string.split(" ")
+        data = cls.message2data(msg)
 
         #Data treatment
         messagedata  = [
-                        int(time()*1000),                                       #time_msec
-                            float(temp[3]),                                     #xacc
-                            float(temp[4]),                                     #yacc
-                            float(temp[5]),                                     #zacc
-                            float(temp[6]),                                     #xgyro
-                            float(temp[7]),                                     #ygyro
-                            float(temp[8]),                                     #zgyro
-                            float(temp[12]),                                    #xmag
-                            float(temp[13]),                                    #ymag
-                            float(temp[14]),                                    #zmag
-                            float(temp[9])*0.478802589,                         #abs_pressure in millibar
-                            0,                                                  #diff_pressure
-                            float(temp[10]),                                    #pressure_alt
-                            15.0,                                               #temperature
-                            int(65535)                                          #fields_updated (ALL)
+                            int(data['simulation/sim-time-sec']*cls._sec2msec),      #time_msec
+                            data['accelerations/udot-ft_sec2'],                     #xacc
+                            data['accelerations/vdot-ft_sec2'],                     #yacc
+                            data['accelerations/wdot-ft_sec2'],                     #zacc
+                            data['velocities/phidot-rad_sec'],                      #xgyro
+                            data['velocities/thetadot-rad_sec'],                    #ygyro
+                            data['velocities/psidot-rad_sec'],                      #zgyro
+                            data['sensors/magnetometer/X/output'],                  #xmag
+                            data['sensors/magnetometer/Y/output'],                  #ymag
+                            data['sensors/magnetometer/Z/output'],                  #zmag
+                            data['atmosphere/P-psf']*0.478802589,                  #abs_pressure in millibar
+                            0.0,                                                    #diff_pressure
+                            data['atmosphere/pressure-altitude'],                   #pressure_alt
+                            15.0,                                                   #temperature
+                            int(65535)                                              #fields_updated (ALL)
                        ]
 
         return messagedata
     @classmethod
-    def FL_2_mav_state_quaternion(cls, string):
+    def FL_2_mav_state_quaternion(cls, msg):
         """
         Translate output "data_out" to parameter for MAVLink_hil_state_quaternion_message Pymavlink function
         :param string: ZMQ message string including  _data_out values (Human Readable)
         :return: function parameter for mavlink message "MAVLink_hil_state_quaternion_message"
         """
-        temp = string.split(" ")
+        data = cls.message2data(msg)
+
+        #Attitude quaternion
+        quaternion = cls.attitude_quaternion(cls, data['attitude/phi-rad'], data['attitude/theta-rad'], data['attitude/psi-rad'])
 
         #Data treatment
         messagedata  = [
-                        int(time()*1000),                                       #time_msec
-                        cls.attitude_quaternion(cls, float(temp[20]), float(temp[21]), float(temp[22])),    #attitude_quaternion
-                        float(temp[6]),                                         #rollspeed
-                        float(temp[7]),                                         #pitchspeed
-                        float(temp[8]),                                         #yawspeed
-                        float(temp[0]),                                         #lat
-                        float(temp[1]),                                         #lon
-                        float(temp[2]),                                         #alt
-                        float(temp[15]),                                        #vx
-                        float(temp[16]),                                        #vy
-                        float(temp[17]),                                        #vz
-                        float(temp[19]),                                        #ind airspeed
-                        float(temp[18]),                                        #true airspeed
-                        float(temp[3]),                                         #xacc
-                        float(temp[4]),                                         #yacc
-                        float(temp[5]),                                         #zacc
-        ]
+                        int(data['simulation/sim-time-sec']*cls._sec2msec),  #time_msec
+                        quaternion,                                         #attitude_quaternion
+                        data['velocities/phidot-rad_sec'],                  #rollspeed
+                        data['velocities/thetadot-rad_sec'],                #pitchspeed
+                        data['velocities/psidot-rad_sec'],                  #yawspeed
+                        data['position/lat-gc-rad'],                        #lat
+                        data['position/long-gc-rad'],                       #lon
+                        data['position/h-sl-ft'],                           #alt
+                        data['velocities/v-north-fps'],                     #vx
+                        data['velocities/v-east-fps'],                      #vy
+                        data['velocities/v-down-fps'],                      #vz
+                        data['velocities/vc-fps'],                          #ind airspeed
+                        data['velocities/vtrue-fps'],                       #true airspeed
+                        data['accelerations/udot-ft_sec2'],                 #xacc
+                        data['accelerations/vdot-ft_sec2'],                 #yacc
+                        data['accelerations/wdot-ft_sec2'],                 #zacc
+                        ]
         return messagedata
+
     @classmethod
-    def FL_2_mav_state(cls, string):
+    def FL_2_mav_state(cls, msg):
         """
         Translate output "data_out" to parameter for MAVLink_hil_state_message Pymavlink function
-        :param string: ZMQ message string including  _data_out values (Human Readable)
+        :param msg: ZMQ message string including  _data_out values (Human Readable)
         :return: function parameter for mavlink message "MAVLink_hil_state_quaternion_message"
         """
-        temp = [float(i) for i in string.split(" ")]
+
+        data = cls.message2data(msg)
 
         #Data treatment
-        messagedata  = [
-                        int(temp[23]*cls._sec2usec),                            # time           usec
-                        temp[20],                                               # phi            rad         float
-                        temp[21],                                               # theta          rad         float
-                        temp[22],                                               # psi            rad         float
-                        temp[6],                                                # rollspeed      rad.s-1     float
-                        temp[7],                                                # pitchspeed     rad.s-1     float
-                        temp[8],                                                # yawspeed       rad.s-1     float
-                        int(temp[0]*cls._rad2degE7),                            # lat            10e7.deg    int
-                        int(temp[1]*cls._rad2degE7),                            # lon            10e7.deg    int
-                        int(temp[2]*cls._ft2m*cls._m2mm),                       # alt            mm          int
-                        int(temp[15]*cls._ft2m*cls._m2cm),                      # vx             cm.s-1      int
-                        int(temp[16]*cls._ft2m*cls._m2cm),                      # vy             cm.s-1      int
-                        int(temp[17]*cls._ft2m*cls._m2cm),                      # vz             cm.s-1      int
-                        int(temp[3]*cls._ft2m*cls._mpss2mg),                    # xacc           1000/g      int
-                        int(temp[4]*cls._ft2m*cls._mpss2mg),                    # yacc           1000/9      int
-                        int(temp[5]*cls._ft2m*cls._mpss2mg),                    # zacc           1000/g      int
+        message_data = [
+            int(data['simulation/sim-time-sec']*cls._sec2usec),                 # time           usec
+            data['attitude/phi-rad'],                                           # phi            rad         float
+            data['attitude/theta-rad'],                                         # theta          rad         float
+            data['attitude/psi-rad'],                                           # psi            rad         float
+            data['velocities/phidot-rad_sec'],                                  # rollspeed      rad.s-1     float
+            data['velocities/thetadot-rad_sec'],                                # pitchspeed     rad.s-1     float
+            data['velocities/psidot-rad_sec'],                                  # yawspeed       rad.s-1     float
+            int(data['position/lat-gc-rad']*cls._rad2degE7),                    # lat            10e7.deg    int
+            int(data['position/long-gc-rad']*cls._rad2degE7),                   # lon            10e7.deg    int
+            int(data['position/h-sl-ft']*cls._ft2m*cls._m2mm),                 # alt            mm          int
+            int(data['velocities/v-north-fps']*cls._ft2m*cls._m2cm),            # vx             cm.s-1      int
+            int(data['velocities/v-east-fps']*cls._ft2m*cls._m2cm),             # vy             cm.s-1      int
+            int(data['velocities/v-down-fps']*cls._ft2m*cls._m2cm),             # vz             cm.s-1      int
+            int(data['accelerations/udot-ft_sec2']*cls._ft2m*cls._mpss2mg),     # xacc           1000/g      int
+            int(data['accelerations/vdot-ft_sec2']*cls._ft2m*cls._mpss2mg),     # yacc           1000/g      int
+            int(data['accelerations/wdot-ft_sec2']*cls._ft2m*cls._mpss2mg)     # zacc           1000/g      int
         ]
-        print(messagedata)
-        return messagedata
+        return message_data
+    @classmethod
+    def message2data(cls,msg):
+        temp = [float(i) for i in msg.split(" ")]
+        return dict(zip(cls._data_out,temp))
+    @classmethod
+    def kinetic_energy(cls, msg):
+        data = cls.message2data(msg)
+        return   0.5*sqrt((data['velocities/v-north-fps']*cls._ft2m)**2
+                      + (data['velocities/v-east-fps']*cls._ft2m)**2
+                      + (data['velocities/v-down-fps']*cls._ft2m)**2)
+    @classmethod
+    def potential_energy(cls,msg):
+        data = cls.message2data(msg)
+        return data['position/h-sl-ft']*cls._ft2m*cls._g
+
 
 class Plane(AircraftTemplate):
 

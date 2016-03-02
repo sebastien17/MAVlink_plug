@@ -154,7 +154,9 @@ class Hil(ZmqBase):
         msg = msg[0]  # get the first (and only) part of the message
 
         if(self._hil_sensor):
-            #HIL sensor Mavlink Message Creation
+            # HIL sensor Mavlink Message Creation
+            # 'time_msec', 'xacc', 'yacc', 'zacc', 'xgyro', 'ygyro', 'zgyro', 'xmag', 'ymag', 'zmag',
+            # 'abs_pressure in millibar', 'diff_pressure', 'pressure_alt', 'temperature', 'fields_updated'
             parameters = self._Aircraft_Type_cls.FL_2_mav_sensor(msg)
             mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_sensor_message(*parameters).pack(self._dumb_header)
         else:
@@ -183,14 +185,21 @@ class Hil(ZmqBase):
 
         try:
             #MavlinkPlug Message Creation
-            mavlink_plug_message = mavlinkplug.Message.MAVLinkData.build_full_message_from(
-                                                                                            self._mavlink_connection_ident,
+            mavlink_plug_message = mavlinkplug.Message.MAVLinkData.build_full_message_from( self._mavlink_connection_ident,
                                                                                             self._ident,
                                                                                             long(time()),
                                                                                             mav_message
                                                                                             )
             #Sending MavlinkPLug Message
             self._stream2Plug.send(mavlink_plug_message.packed)
+
+            #Energy Information Message Creation
+            raw_string = "KE_PE {0} {1}".format(self._Aircraft_Type_cls.kinetic_energy(msg),self._Aircraft_Type_cls.potential_energy(msg))
+            energy_message = mavlinkplug.Message.RawData.build_full_message_from(mavlinkplug.Message.DESTINATION.ALL.value,
+                                                                                 self._ident,
+                                                                                 long(time()),
+                                                                                 raw_string)
+            self._stream2Plug.send(energy_message.packed)
         except Exception as e:
              print(e.message)
         else:

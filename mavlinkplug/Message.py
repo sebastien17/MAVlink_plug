@@ -88,11 +88,21 @@ class MAVLinkData(RawData):
         d_type = self.value.get_type()
         data = {}
         data[d_type] = {}
+
         if (d_type != 'BAD DATA' and d_type != 'BAD_DATA'):      #BAD DATA message ignored
-            for i in self.data.get_fieldnames():
-                data[d_type][i]=self.value.__dict__[i]
-                json_data = dumps(data)
+            for field in self.data.get_fieldnames():
+                data[d_type][field]=self.value.__dict__[field]
+        json_data = dumps(data)
+        return json_data
+    @property
+    def fields(self):
+        d_type = self.value.get_type()
+        data = {}
+        if (d_type != 'BAD DATA' and d_type != 'BAD_DATA'):      #BAD DATA message ignored
+            for field in self.data.get_fieldnames():
+                data[field]=self.value.__dict__[field]
         return data
+
     #Decode buffer into MAVlink message class instance
     def _decode(self, msgbuf):
         '''
@@ -374,5 +384,6 @@ class Message(object):
         self.header = header_instance
         self.data = data_instance
         return self
+
 def integer_pack(_integer):
     return struct.pack('!B', _integer)
