@@ -24,6 +24,8 @@ from time import sleep, time
 from mavlinkplug.Base import ZmqBase
 import  mavlinkplug.Message, mavlinkplug.Tools
 
+#Constant
+ENERGY_MSG_HEADER  = 'KE_PE'
 
 class Hil(ZmqBase):
     def __init__(self, module_info, mavlink_connection_ident, Aircraft_Type_cls, hil_sensor=True, quaternion=True, name=None):
@@ -194,7 +196,7 @@ class Hil(ZmqBase):
             self._stream2Plug.send(mavlink_plug_message.packed)
 
             #Energy Information Message Creation
-            raw_string = "KE_PE {0} {1}".format(self._Aircraft_Type_cls.kinetic_energy(msg),self._Aircraft_Type_cls.potential_energy(msg))
+            raw_string = "{0} {1} {2}".format(ENERGY_MSG_HEADER, self._Aircraft_Type_cls.kinetic_energy(msg),self._Aircraft_Type_cls.potential_energy(msg))
             energy_message = mavlinkplug.Message.RawData.build_full_message_from(mavlinkplug.Message.DESTINATION.ALL.value,
                                                                                  self._ident,
                                                                                  long(time()),
