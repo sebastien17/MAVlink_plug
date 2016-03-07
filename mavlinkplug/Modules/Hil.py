@@ -22,7 +22,7 @@ from __future__ import print_function
 import zmq, math
 from time import sleep, time
 from mavlinkplug.Base import ZmqBase
-import  mavlinkplug.Message, mavlinkplug.Tools
+import mavlinkplug.Message, mavlinkplug.Tools
 
 #Constant
 ENERGY_MSG_HEADER  = 'KE_PE'

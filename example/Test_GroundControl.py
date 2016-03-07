@@ -20,7 +20,8 @@
 
 if(__name__ == '__main__'):
 
-    import mavlinkplug.Modules.Module
+    import mavlinkplug.Modules.MavConnection
+    import mavlinkplug.Modules.FileWriter
     import mavlinkplug.Plug
     import logging
 
@@ -38,12 +39,11 @@ if(__name__ == '__main__'):
     plug.start()
 
     #Set a mavlink connection with  MAVlink ready devices
-    mav_con_01 = mavlinkplug.Modules.Module.MAVlinkPlugConnection(plug.plug_info(), 'COM7', dialect='ardupilotmega', baud=115200)
+    mav_con_01 = mavlinkplug.Modules.MavConnection.MavConnection(plug.plug_info(), 'COM7', dialect='ardupilotmega', baud=115200)
 
     #Set a output file
-    file_output = mavlinkplug.Modules.Module.MAVlinkPlugFileWriter(plug.plug_info(), 'Test_GroundControl.log')
+    file_output = mavlinkplug.Modules.FileWriter.FileWriter(plug.plug_info(), 'Test_GroundControl.log')
 
-c
     #Start all modules
     file_output.start()
     gc_connection.start()
