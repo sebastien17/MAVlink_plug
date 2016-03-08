@@ -42,17 +42,18 @@ class Graph_Test(ZmqBase):
         super(Graph_Test,self).setup()
         #Define stream listening from plug
         self._stream2Plug  = self.stream(zmq.PUB, self._addr_to_plug, bind = False)
-        self._loop.call_later(1.0, self.beep)
+        self._loop.call_later(0.01, self.beep)
         self._logging('Initializing')
 
     def beep(self):
-        raw_string = "{0} {1} {2}".format(ENERGY_MSG_HEADER, self._count,self._count)
+        self._count += 1.0
+        raw_string = "{0} {1} {2}".format(ENERGY_MSG_HEADER, self._count, self._count)
         energy_message = mavlinkplug.Message.RawData.build_full_message_from(mavlinkplug.Message.DESTINATION.ALL.value,
                                                                                  17,
                                                                                  long(time()),
                                                                                  raw_string)
         self._stream2Plug.send(energy_message.packed)
-
+        self._loop.call_later(0.01, self.beep)
 
 if(__name__ == '__main__'):
 

@@ -58,6 +58,7 @@ class Graph(ZmqBase):
         self._stream2Plug  = self.stream(zmq.PUB, self._addr_to_plug, bind = False)
 
         #PyQt Graph Initialization
+        self._app = QtGui.QApplication([])
         self._win = pg.GraphicsWindow()
         self._win.setWindowTitle('MAvlinkPlug Graph Module')
         self._nrg_plot = self._win.addPlot()
@@ -67,7 +68,7 @@ class Graph(ZmqBase):
         self._pe_plot = self._nrg_plot.plot(self._nrg_data[1], pen=(0,255,0), name="Potential Energy")
         self._ie_plot = self._nrg_plot.plot(self._nrg_data[2], pen=(0,0,255), name="Internal Energy")
         self._te_plot = self._nrg_plot.plot(self._nrg_data[3], pen=(255,255,255), name="Total Energy")
-
+        self._app.processEvents()
         self._logging('Initializing')
     def _plug_2_graph(self, p_msg):
         plug_msg = mavlinkplug.Message.Message().unpack_from(p_msg[0])
@@ -86,11 +87,12 @@ class Graph(ZmqBase):
 
     def _update_graph(self):
         temp_array = np.array([self._ke,self._pe,self._ie,self._te]).reshape(4,1)
-        self._nrg_data  = np.concatenate((self._nrg_data[:-1], temp_array), axis=1)
+        self._nrg_data  = np.concatenate((self._nrg_data[:,1:], temp_array), axis=1)
         self._ke_plot.setData(self._nrg_data[0])
         self._pe_plot.setData(self._nrg_data[1])
         self._ie_plot.setData(self._nrg_data[2])
         self._te_plot.setData(self._nrg_data[3])
+        self._app.processEvents()
 
     def stop(self):
         super(Graph, self).stop()
