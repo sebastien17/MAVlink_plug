@@ -43,7 +43,7 @@ class TcpConnection(multiprocessing.Process):
         self._run = True
         self._subscribe = ['']
         if(name == None ):
-            self._name = 'TCPConnection_' + self._ident
+            self._name = 'TCPConnection_' + str(self._ident)
         else:
             self._name = name
     def run(self):
@@ -61,7 +61,7 @@ class TcpConnection(multiprocessing.Process):
                 self._socket.listen(1)
                 self._connection_h, self._connection_address = self._socket.accept()
                 self._connection_activated = True
-                self._logging('Connected to {1}'.format(self._connection_address))
+                self._logging('Connected to {0}'.format(self._connection_address))
                 #Launch threaded functions
                 self._ZMQ_2_UDP()
                 self._UDP_2_ZMQ()
@@ -108,9 +108,6 @@ class TcpConnection(multiprocessing.Process):
         self._logging('Closing')
         self.terminate()
     def _logging(self, msg, type = 'INFO'):
-         logging_message = mavlinkplug.Message.LogData.build_full_message_from( 0,
-                                                                                self._ident,
-                                                                                long(time()),
-                                                                                type+': '+ msg
-                                                                                )
-         self._stream2Plug.send(logging_message.packed)
+         pass
+         #logging_message = mavlinkplug.Message.LogData.build_full_message_from( 0, self._ident, long(time()), type+': '+ msg )
+         #self._stream2Plug.send(logging_message.packed)

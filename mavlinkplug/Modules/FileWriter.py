@@ -38,7 +38,7 @@ class FileWriter(ZmqBase):
         self._file_descriptor = None
         self._subscribe = ['']
         if(name == None ):
-            self._name = 'FileWriter_' + self._ident
+            self._name = 'FileWriter_' + str(self._ident)
         else:
             self._name = name
     def setup(self):

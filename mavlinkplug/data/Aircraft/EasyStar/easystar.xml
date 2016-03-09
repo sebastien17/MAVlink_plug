@@ -633,9 +633,7 @@
            <value>-0.03</value>
        </product>
     </function>
-
   </axis>
-
  </aerodynamics>
 
  <system name="Navigation Sensors">

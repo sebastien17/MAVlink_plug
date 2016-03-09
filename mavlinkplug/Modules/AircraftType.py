@@ -86,26 +86,66 @@ class AircraftTemplate(multiprocessing.Process):
         """
         data = cls.message2data(msg)
 
+        (data['velocities/phidot-rad_sec_bf'],
+         data['velocities/thetadot-rad_sec_bf'],
+         data['velocities/psidot-rad_sec_bf']) = cls.convert_body_frame(
+                data['attitude/phi-rad'],
+                data['attitude/theta-rad'],
+                data['velocities/phidot-rad_sec'],
+                data['velocities/thetadot-rad_sec'],
+                data['velocities/psidot-rad_sec']
+        )
+
         #Data treatment
         messagedata  = [
-                            int(data['simulation/sim-time-sec']*cls._sec2msec),      #time_msec
-                            data['accelerations/udot-ft_sec2'],                     #xacc
-                            data['accelerations/vdot-ft_sec2'],                     #yacc
-                            data['accelerations/wdot-ft_sec2'],                     #zacc
-                            data['velocities/phidot-rad_sec'],                      #xgyro
-                            data['velocities/thetadot-rad_sec'],                    #ygyro
-                            data['velocities/psidot-rad_sec'],                      #zgyro
-                            data['sensors/magnetometer/X/output'],                  #xmag
-                            data['sensors/magnetometer/Y/output'],                  #ymag
-                            data['sensors/magnetometer/Z/output'],                  #zmag
-                            data['atmosphere/P-psf']*0.478802589,                  #abs_pressure in millibar
-                            0.0,                                                    #diff_pressure
-                            data['atmosphere/pressure-altitude'],                   #pressure_alt
-                            15.0,                                                   #temperature
-                            int(65535)                                              #fields_updated (ALL)
+                            int(data['simulation/sim-time-sec']*cls._sec2usec),     #time_usec  boot time usec  int
+                            data['accelerations/udot-ft_sec2'],                     #xacc   m/s**2  float
+                            data['accelerations/vdot-ft_sec2'],                     #yacc   m/s**2  float
+                            data['accelerations/wdot-ft_sec2'],                     #zacc   m/s**2  float
+                            data['velocities/phidot-rad_sec_bf'],                   #xgyro  rad/s   float
+                            data['velocities/thetadot-rad_sec_bf'],                 #ygyro  rad/s   float
+                            data['velocities/psidot-rad_sec_bf'],                   #zgyro  rad/s   float
+                            data['sensors/magnetometer/X/output'],                  #xmag   Gauss   float
+                            data['sensors/magnetometer/Y/output'],                  #ymag   Gauss   float
+                            data['sensors/magnetometer/Z/output'],                  #zmag   Gauss   float
+                            data['atmosphere/P-psf']*0.478802589,                   #abs_pr mbar    float
+                            0.0,                                                    #dif_pr mbar    float
+                            data['atmosphere/pressure-altitude'],                   #pr_alt meter   float
+                            15.0,                                                   #temp   C       float
+                            int(8186)                                              #fields_updated (ALL)
                        ]
 
         return messagedata
+
+    @classmethod
+    def FL_2_mav_gps(cls, msg):
+        """
+        Translate output "data_out" to parameter for MAVLink_hil_gps_message Pymavlink function
+        :param string: ZMQ message string including  _data_out values (Human Readable)
+        :return: function parameter for mavlink message "MAVLink_hil_gps_message"
+        """
+        data = cls.message2data(msg)
+
+
+        #Data treatment
+        messagedata  = [
+                            int(data['simulation/sim-time-sec']*cls._sec2usec),     #time_usec  boot time usec  int
+                            3,                                                      #Fix_type    uint8_t	0-1: no fix, 2: 2D fix, 3: 3D fix. Some applications will not use the value of this field unless it is at least two, so always correctly fill in the fix.
+                            int(data['position/lat-gc-rad']*cls._rad2degE7),        # lat            10e7.deg    int
+                            int(data['position/long-gc-rad']*cls._rad2degE7),       # lon            10e7.deg    int
+                            int(data['position/h-sl-ft']*cls._ft2m*cls._m2mm),      # alt            mm          int
+                            65535,                                                  #eph    uint16_t	GPS HDOP horizontal dilution of position in cm (m*100). If unknown, set to: 65535
+                            65535,                                                  #epv	uint16_t	GPS VDOP vertical dilution of position in cm (m*100). If unknown, set to: 65535
+                            65535,                                                  #uint16_t	GPS ground speed (m/s * 100). If unknown, set to: 65535
+                            int(data['velocities/v-north-fps']*cls._ft2m*cls._m2cm),# vn             cm.s-1      int
+                            int(data['velocities/v-east-fps']*cls._ft2m*cls._m2cm), # ve             cm.s-1      int
+                            int(data['velocities/v-down-fps']*cls._ft2m*cls._m2cm), # vd             cm.s-1      int
+                            65535,                                                  #cog	uint16_t	Course over ground (NOT heading, but direction of movement) in degrees * 100, 0.0..359.99 degrees. If unknown, set to: 65535
+                            255,                                                    #satellites_visible	uint8_t	Number of satellites visible. If unknown, set to 255
+                       ]
+
+        return messagedata
+
     @classmethod
     def FL_2_mav_state_quaternion(cls, msg):
         """
@@ -120,7 +160,7 @@ class AircraftTemplate(multiprocessing.Process):
 
         #Data treatment
         messagedata  = [
-                        int(data['simulation/sim-time-sec']*cls._sec2msec),  #time_msec
+                        int(data['simulation/sim-time-sec']*cls._sec2msec), #time_msec
                         quaternion,                                         #attitude_quaternion
                         data['velocities/phidot-rad_sec'],                  #rollspeed
                         data['velocities/thetadot-rad_sec'],                #pitchspeed
@@ -149,26 +189,47 @@ class AircraftTemplate(multiprocessing.Process):
 
         data = cls.message2data(msg)
 
+        (data['velocities/phidot-rad_sec_bf'],
+         data['velocities/thetadot-rad_sec_bf'],
+         data['velocities/psidot-rad_sec_bf']) = cls.convert_body_frame(
+                data['attitude/phi-rad'],
+                data['attitude/theta-rad'],
+                data['velocities/phidot-rad_sec'],
+                data['velocities/thetadot-rad_sec'],
+                data['velocities/psidot-rad_sec']
+        )
+
+
+
         #Data treatment
         message_data = [
             int(data['simulation/sim-time-sec']*cls._sec2usec),                 # time           usec
             data['attitude/phi-rad'],                                           # phi            rad         float
             data['attitude/theta-rad'],                                         # theta          rad         float
             data['attitude/psi-rad'],                                           # psi            rad         float
-            data['velocities/phidot-rad_sec'],                                  # rollspeed      rad.s-1     float
-            data['velocities/thetadot-rad_sec'],                                # pitchspeed     rad.s-1     float
-            data['velocities/psidot-rad_sec'],                                  # yawspeed       rad.s-1     float
+            data['velocities/phidot-rad_sec_bf'],                               # rollspeed      rad.s-1     float
+            data['velocities/thetadot-rad_sec_bf'],                             # pitchspeed     rad.s-1     float
+            data['velocities/psidot-rad_sec_bf'],                               # yawspeed       rad.s-1     float
             int(data['position/lat-gc-rad']*cls._rad2degE7),                    # lat            10e7.deg    int
             int(data['position/long-gc-rad']*cls._rad2degE7),                   # lon            10e7.deg    int
-            int(data['position/h-sl-ft']*cls._ft2m*cls._m2mm),                 # alt            mm          int
+            int(data['position/h-sl-ft']*cls._ft2m*cls._m2mm),                  # alt            mm          int
             int(data['velocities/v-north-fps']*cls._ft2m*cls._m2cm),            # vx             cm.s-1      int
             int(data['velocities/v-east-fps']*cls._ft2m*cls._m2cm),             # vy             cm.s-1      int
             int(data['velocities/v-down-fps']*cls._ft2m*cls._m2cm),             # vz             cm.s-1      int
             int(data['accelerations/udot-ft_sec2']*cls._ft2m*cls._mpss2mg),     # xacc           1000/g      int
             int(data['accelerations/vdot-ft_sec2']*cls._ft2m*cls._mpss2mg),     # yacc           1000/g      int
-            int(data['accelerations/wdot-ft_sec2']*cls._ft2m*cls._mpss2mg)     # zacc           1000/g      int
+            int(data['accelerations/wdot-ft_sec2']*cls._ft2m*cls._mpss2mg)      # zacc           1000/g      int
         ]
         return message_data
+
+    @classmethod
+    def convert_body_frame(cls, phi, theta, phiDot, thetaDot, psiDot):
+        '''convert a set of roll rates from earth frame to body frame'''
+        p = phiDot - psiDot*sin(theta)
+        q = cos(phi)*thetaDot + sin(phi)*psiDot*cos(theta)
+        r = cos(phi)*psiDot*cos(theta) - sin(phi)*thetaDot
+        return (p, q, r)
+
     @classmethod
     def message2data(cls,msg):
         temp = [float(i) for i in msg.split(" ")]
@@ -197,7 +258,7 @@ class Plane(AircraftTemplate):
     'atmosphere/wind-down-fps'
     ]
 
-    JSBSIM_DEFAULT_PATH = path.dirname(__file__) + sep + 'data' + sep
+    JSBSIM_DEFAULT_PATH = path.dirname(__file__) + sep + '..' + sep + 'data' + sep
     MIN_SERVO_PPM = 990
     MAX_SERVO_PPM = 2010
     THR_MIN = 0.0
@@ -205,7 +266,7 @@ class Plane(AircraftTemplate):
     CMD_MIN = -1.0
     CMD_MAX = 1.0
 
-    def __init__(self, zmq_context = None, zmq_in = None, zmq_out = None, daemon = True, lat=43.6042600, lon=1.4436700, terrain_elev_ft = 400, h_agl_ft = 10000, fdm_model = 'c172p', jsbsim_root = None, dt = 1.0/30):
+    def __init__(self, zmq_context = None, zmq_in = None, zmq_out = None, daemon = True, lat=43.6042600, lon=1.4436700, terrain_elev_ft = 400, h_agl_ft = 10000, fdm_model = 'easystar', jsbsim_root = None, dt = 1.0/30):
         super(Plane,self).__init__()
         self._zmq_context = zmq_context
         self._zmq_in = zmq_in
@@ -233,7 +294,7 @@ class Plane(AircraftTemplate):
         self._fdm.set_property_value("ic/phi-deg",0.0)                                      # Roll
         # self._fdm.set_property_value("ic/theta-deg",0.0)                                    # Pitch
         self._fdm.set_property_value("ic/psi-true-deg",110.0)                               # Heading
-        self._fdm.set_property_value("ic/vt-kts",90)
+        self._fdm.set_property_value("ic/vt-kts",20)
         #Fdm Trim
         #self._fdm.do_trim(1)
         # Zmq setup

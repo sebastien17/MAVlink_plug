@@ -27,14 +27,15 @@ from pymavlink import mavutil
 import zmq
 
 #Internal Module
-import  mavlinkplug.Message
+import mavlinkplug.Message
 from mavlinkplug.Base import ModBase, in_thread
 from mavlinkplug.Exception import Exception
+from serial.serialutil import SerialException
 
 
 
 class MavConnection(ModBase):
-    def __init__(self, module_info, name = None, *argv,  **kwargs):
+    def __init__(self, module_info, *argv, **kwargs):
         super(MavConnection, self).__init__()
         self._zmq_context = zmq.Context()
         self._zmq_sock_out , self._zmq_sock_in, self._ident = module_info
@@ -44,17 +45,15 @@ class MavConnection(ModBase):
         self._kwargs = kwargs
         self._mavh = None
         self._in_msg = 0
-        if(name == None ):
-            self._name = 'MavConnection_' + self._ident
-        else:
-            self._name = name
+        self._name = 'MavConnection_' + str(self._ident)
+
     def try_connection(self):
         self._mavh = None
         self._logging('Connection initializing')
         while(self._run):
             try:
                 self._mavh = mavutil.mavlink_connection(*self._argv,**self._kwargs)
-            except Exception as e:
+            except SerialException as e:
                 self._mavh = None
                 sleep(1)                                #Wait 1 second until next try
             else:
@@ -80,20 +79,19 @@ class MavConnection(ModBase):
         while(self._run):
             try:
                 msg = self._mavh.recv_msg()
-            except :
+            except(Exception) as e:
                 self._logging('Reinitializing connection (error)')
                 self._mavh.close()
                 self.try_connection()
             else:
                 if msg is not None:
                     time_idle = None
-                    self._logging('msg', type = 'DEBUG')
                     self._in_msg += 1
                     try:
                         plug_message.header.timestamp = long(msg._timestamp*1000)
                         plug_message.data.value = msg.get_msgbuf()
                     except(Exception) as e :
-                        self._logging(e, type = 'DEBUG')
+                        self._logging(e.message, type = 'DEBUG')
                     else:
                         self._stream2Plug.send(plug_message.packed)
                 else:
@@ -107,7 +105,7 @@ class MavConnection(ModBase):
                         time_idle = None
                     else:
                         if(time() - time_idle > log_front):
-                            self._logging('Connection idle for {1:.2f} second(s)'.format(time() - time_idle))
+                            self._logging('Connection idle for {0:.2f} second(s)'.format(time() - time_idle))
                             log_front = log_front + 1.0
         del(plug_message)
         self._logging('Loop stop')

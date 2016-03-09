@@ -29,7 +29,7 @@ if(__name__ == '__main__'):
     import mavlinkplug.Modules.Hil
     import mavlinkplug.Modules.AircraftType
 
-        #Creating plug
+    # Creating plug
     plug = mavlinkplug.Plug.Plug()
     plug.start()
 
@@ -38,7 +38,7 @@ if(__name__ == '__main__'):
     file_output.start()
 
     #Set a mavlink connection with  MAVlink ready devices
-    mav_con_01 = mavlinkplug.Modules.MavConnection.MavConnection(plug.plug_info(), 'COM4', dialect='ardupilotmega', baud=115200)
+    mav_con_01 = mavlinkplug.Modules.MavConnection.MavConnection(plug.plug_info(), 'COM3', dialect='ardupilotmega', baud=115200)
     mav_con_01.start() #Mavlink connection start
 
     #Set a connection for GC
@@ -46,8 +46,8 @@ if(__name__ == '__main__'):
     gc_connection.start()
 
     #Creating HIL environment
-    hil_env = mavlinkplug.Modules.Hil.Hil(plug.plug_info(), mav_con_01.ident(), mavlinkplug.Modules.AircraftType.Plane, hil_sensor=False, quaternion=False)
-    hil_env.add_thermal((43.6042600,1.4436700), 20, 10000)
+    hil_env = mavlinkplug.Modules.Hil.Hil(plug.plug_info(), mav_con_01.ident(), mavlinkplug.Modules.AircraftType.Plane, hil_sensor=True, quaternion=False)
+    #hil_env.add_thermal((43.6042600,1.4436700), 20, 10000)
 
     #Automatic Launch Procedure
     hil_env.start()

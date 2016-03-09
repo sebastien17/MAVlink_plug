@@ -45,7 +45,7 @@ class Hil(ZmqBase):
         self._thermal_wind_NED = (0.0, 0.0, 0.0)
         self._thermal_list = []
         if(name == None ):
-            self._name = 'FileWriter_' + self._ident
+            self._name = 'FileWriter_' + str(self._ident)
         else:
             self._name = name
     def setup(self):
@@ -159,53 +159,57 @@ class Hil(ZmqBase):
             # HIL sensor Mavlink Message Creation
             # 'time_msec', 'xacc', 'yacc', 'zacc', 'xgyro', 'ygyro', 'zgyro', 'xmag', 'ymag', 'zmag',
             # 'abs_pressure in millibar', 'diff_pressure', 'pressure_alt', 'temperature', 'fields_updated'
-            parameters = self._Aircraft_Type_cls.FL_2_mav_sensor(msg)
-            mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_sensor_message(*parameters).pack(self._dumb_header)
-        else:
-            if(self._quaternion):
-                # HIL State Quaternion Mavlink Message Creation
-                # 'time_usec', 'attitude_quaternion', 'rollspeed', 'pitchspeed', 'yawspeed',
-                # 'lat', 'lon', 'alt', 'vx', 'vy', 'vz', 'ind_airspeed', 'true_airspeed', 'xacc', 'yacc', 'zacc']
-                parameters = self._Aircraft_Type_cls.FL_2_mav_state_quaternion(msg)
-                try:
-                    mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_state_quaternion_message(*parameters).pack(self._dumb_header)
-                except Exception as e:
-                    print(e.message)
-                else:
-                    deg_coordinates_tuple = (parameters[5], parameters[6])
+            parameters_sensors = self._Aircraft_Type_cls.FL_2_mav_sensor(msg)
+            parameters_gps = self._Aircraft_Type_cls.FL_2_mav_gps(msg)
+
+            try:
+                mav_message_sensor = mavlinkplug.Message.mavlink.MAVLink_hil_sensor_message(*parameters_sensors).pack(self._dumb_header)
+                mav_message_gps = mavlinkplug.Message.mavlink.MAVLink_hil_gps_message(*parameters_gps).pack(self._dumb_header)
+            except Exception as e:
+                print(e.message)
+
+        if(self._quaternion):
+            # HIL State Quaternion Mavlink Message Creation
+            # 'time_usec', 'attitude_quaternion', 'rollspeed', 'pitchspeed', 'yawspeed',
+            # 'lat', 'lon', 'alt', 'vx', 'vy', 'vz', 'ind_airspeed', 'true_airspeed', 'xacc', 'yacc', 'zacc']
+            parameters = self._Aircraft_Type_cls.FL_2_mav_state_quaternion(msg)
+            try:
+                mav_message_state = mavlinkplug.Message.mavlink.MAVLink_hil_state_quaternion_message(*parameters).pack(self._dumb_header)
+            except Exception as e:
+                print(e.message)
             else:
-                # HIL State Mavlink Message Creation
-                # 'time_usec', 'roll', 'pitch', 'yaw', 'rollspeed', 'pitchspeed', 'yawspeed',
-                # 'lat', 'lon', 'alt', 'vx', 'vy', 'vz', 'xacc', 'yacc', 'zacc'
-                parameters = self._Aircraft_Type_cls.FL_2_mav_state(msg)
-                try:
-                    mav_message = mavlinkplug.Message.mavlink.MAVLink_hil_state_message(*parameters).pack(self._dumb_header)
-                except Exception as e:
-                    print(e.message)
-                else:
-                    self._deg_coordinates_tuple = (parameters[5], parameters[6])
+                self._deg_coordinates_tuple = (parameters[5], parameters[6])
+        else:
+            # HIL State Mavlink Message Creation
+            # 'time_usec', 'roll', 'pitch', 'yaw', 'rollspeed', 'pitchspeed', 'yawspeed',
+            # 'lat', 'lon', 'alt', 'vx', 'vy', 'vz', 'xacc', 'yacc', 'zacc'
+            parameters = self._Aircraft_Type_cls.FL_2_mav_state(msg)
+            try:
+                mav_message_state = mavlinkplug.Message.mavlink.MAVLink_hil_state_message(*parameters).pack(self._dumb_header)
+            except Exception as e:
+                print(e.message)
+            else:
+                self._deg_coordinates_tuple = (parameters[5], parameters[6])
 
         try:
-            #MavlinkPlug Message Creation
-            mavlink_plug_message = mavlinkplug.Message.MAVLinkData.build_full_message_from( self._mavlink_connection_ident,
-                                                                                            self._ident,
-                                                                                            long(time()),
-                                                                                            mav_message
-                                                                                            )
-            #Sending MavlinkPLug Message
+            mavlink_plug_message = mavlinkplug.Message.MAVLinkData.build_full_message_from( self._mavlink_connection_ident, self._ident, long(time()), mav_message_state )
             self._stream2Plug.send(mavlink_plug_message.packed)
+
+            if(self._hil_sensor):
+
+                mavlink_plug_message_sensor = mavlinkplug.Message.MAVLinkData.build_full_message_from( self._mavlink_connection_ident, self._ident,long(time()), mav_message_sensor )
+                mavlink_plug_message_gps = mavlinkplug.Message.MAVLinkData.build_full_message_from( self._mavlink_connection_ident, self._ident,long(time()), mav_message_gps )
+                self._stream2Plug.send(mavlink_plug_message_sensor.packed)
+                self._stream2Plug.send(mavlink_plug_message_gps.packed)
 
             #Energy Information Message Creation
             raw_string = "{0} {1} {2}".format(ENERGY_MSG_HEADER, self._Aircraft_Type_cls.kinetic_energy(msg),self._Aircraft_Type_cls.potential_energy(msg))
-            energy_message = mavlinkplug.Message.RawData.build_full_message_from(mavlinkplug.Message.DESTINATION.ALL.value,
-                                                                                 self._ident,
-                                                                                 long(time()),
-                                                                                 raw_string)
+            energy_message = mavlinkplug.Message.RawData.build_full_message_from(mavlinkplug.Message.DESTINATION.ALL.value, self._ident, long(time()), raw_string )
             self._stream2Plug.send(energy_message.packed)
         except Exception as e:
              print(e.message)
         else:
-            self._thermals_management(deg_coordinates_tuple)
+            self._thermals_management(self._deg_coordinates_tuple)
 
     def add_thermal(self, deg_lat_long_tuple, amplitude, D_param):
         self._thermal_list.append(tuple(deg_lat_long_tuple, amplitude, D_param))
