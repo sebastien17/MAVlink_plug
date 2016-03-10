@@ -32,8 +32,6 @@ from mavlinkplug.Base import ModBase, in_thread
 from mavlinkplug.Exception import Exception
 from serial.serialutil import SerialException
 
-
-
 class MavConnection(ModBase):
     def __init__(self, module_info, *argv, **kwargs):
         super(MavConnection, self).__init__()

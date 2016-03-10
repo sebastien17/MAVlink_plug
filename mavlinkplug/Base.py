@@ -23,6 +23,10 @@ from zmq.eventloop import ioloop, zmqstream
 import zmq, multiprocessing, threading
 import mavlinkplug.Message
 
+my_iolop = ioloop.ZMQIOLoop.instance()
+my_iolop.add_timeout()
+
+
 
 #Thread decorator
 def in_thread(isDaemon = True):
@@ -49,6 +53,7 @@ class ZmqBase(multiprocessing.Process):
         self._loop = None
         self._ident = None
         self._default_subscribe = [mavlinkplug.Message.DESTINATION.ALL.p_value]
+        self._running = False
     def setup(self):
         if(self._zmq_context == None):
             self._zmq_context = zmq.Context()
@@ -70,6 +75,7 @@ class ZmqBase(multiprocessing.Process):
             _stream.on_recv(callback)
         return _stream
     def run(self):
+        self._running = True
         self.setup()
         self._loop.start()
     def stop(self):
