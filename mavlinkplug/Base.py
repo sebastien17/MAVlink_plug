@@ -23,11 +23,6 @@ from zmq.eventloop import ioloop, zmqstream
 import zmq, multiprocessing, threading
 import mavlinkplug.Message
 
-my_iolop = ioloop.ZMQIOLoop.instance()
-my_iolop.add_timeout()
-
-
-
 #Thread decorator
 def in_thread(isDaemon = True):
     def base_in_thread(fn):

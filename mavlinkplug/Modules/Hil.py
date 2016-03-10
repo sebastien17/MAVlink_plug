@@ -69,28 +69,30 @@ class Hil(ZmqBase):
         #Install scheduler in IOloop
         self._loop.add_callback(self._scheduler)
 
-    @gen.coroutine
+
+    @gen.engine
     def _scheduler(self):
         while self._running:
-            actual_time = time()
-            #State send
-            if(actual_time - self._last_state_send_time > self._state_period):
-                self._last_state_send_time = actual_time
-                self._send_state_frame()
-            #Sensor send
-            if(actual_time - self._last_sensor_send_time > self._sensor_period and self._hil_sensor == True):
-                self._last_sensor_send_time = actual_time
-                self._send_sensor_frame()
-            #Gps send
-            if(actual_time - self._last_gps_send_time > self._gps_period):
-                self._last_gps_send_time = actual_time
-                self._send_gps_frame()
-            #Energy send
-            if(actual_time - self._last_energy_send_time > 1.0/5):
-                self._last_energy_send_time = actual_time
-                self._send_energy_frame()
+            if self._last_jsbsim_msg != None:
+                actual_time = time()
+                #State send
+                if(actual_time - self._last_state_send_time > self._state_period):
+                    self._last_state_send_time = actual_time
+                    self._send_state_frame()
+                #Sensor send
+                if(actual_time - self._last_sensor_send_time > self._sensor_period and self._hil_sensor == True):
+                    self._last_sensor_send_time = actual_time
+                    self._send_sensor_frame()
+                #Gps send
+                if(actual_time - self._last_gps_send_time > self._gps_period):
+                    self._last_gps_send_time = actual_time
+                    self._send_gps_frame()
+                #Energy send
+                if(actual_time - self._last_energy_send_time > 1.0/5):
+                    self._last_energy_send_time = actual_time
+                    self._send_energy_frame()
             #100 Hz Cycle
-            yield self._loop.instance().add_timeout(time() + 0.001)
+            yield gen.Task(self._loop.instance().add_timeout, time() + 0.01)
 
     def _get_MAVlink_Plug_Message(self, msg):
         _msg = msg[0] #get the first (and only) part of the message
@@ -222,7 +224,7 @@ class Hil(ZmqBase):
 
     def _send_energy_frame(self):
         #Energy Information Message Creation
-        raw_string = "{0} {1} {2}".format(ENERGY_MSG_HEADER, self._Aircraft_Type_cls.kinetic_energy(msg),self._Aircraft_Type_cls.potential_energy(msg))
+        raw_string = "{0} {1} {2}".format(ENERGY_MSG_HEADER, self._Aircraft_Type_cls.kinetic_energy(self._last_jsbsim_msg),self._Aircraft_Type_cls.potential_energy(self._last_jsbsim_msg))
         energy_message = mavlinkplug.Message.RawData.build_full_message_from(mavlinkplug.Message.DESTINATION.ALL.value, self._ident, long(time()), raw_string )
         self._stream2Plug.send(energy_message.packed)
 
@@ -234,6 +236,7 @@ class Hil(ZmqBase):
         '''
         self._last_jsbsim_msg = msg[0]  # get the first (and only) part of the message
         self._last_jsbsim_msg_time = time()
+        self._logging(self._last_jsbsim_msg)
         #self._deg_coordinates_tuple = (parameters[5], parameters[6])
         #self._thermals_management(self._deg_coordinates_tuple)
         #self._thermals_management(self._deg_coordinates_tuple)
