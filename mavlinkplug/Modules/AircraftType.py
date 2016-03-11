@@ -32,6 +32,7 @@ class AircraftTemplate(multiprocessing.Process):
     _g = 9.80665
     _sec2usec = 1.0e6
     _sec2msec = 1.0e3
+    _rad2deg = 180.0/pi
     _rad2degE7 = 1.0e7*180.0/pi
     _deg2rad = pi/180.0
     _m2mm = 1000.0
@@ -77,6 +78,7 @@ class AircraftTemplate(multiprocessing.Process):
             cos(phi/2)*sin(theta/2)*cos(psi/2)+sin(phi/2)*cos(theta/2)*sin(psi/2),
             cos(phi/2)*cos(theta/2)*sin(psi/2)-sin(phi/2)*sin(theta/2)*cos(psi/2)
                ]
+
     @classmethod
     def FL_2_mav_sensor(cls, msg):
         """
@@ -234,6 +236,13 @@ class AircraftTemplate(multiprocessing.Process):
     def message2data(cls,msg):
         temp = [float(i) for i in msg.split(" ")]
         return dict(zip(cls._data_out,temp))
+
+    @classmethod
+    def deg_coordinate_tuple(cls, msg):
+        data = cls.message2data(msg)
+        return data[0]*cls._rad2deg, data[1]*cls._rad2deg
+
+
     @classmethod
     def kinetic_energy(cls, msg):
         data = cls.message2data(msg)
@@ -282,6 +291,7 @@ class Plane(AircraftTemplate):
         else:
             self._jsbsim_root = self.JSBSIM_DEFAULT_PATH
         self._dt = dt
+
     def setup(self):
         #Flight Loop setup
         self._fdm = fdmexec.FGFDMExec(root_dir=self._jsbsim_root)
@@ -302,11 +312,14 @@ class Plane(AircraftTemplate):
             self._zmq_context = Context()
         self._zmq_tool = zmq_exchange(self._data_in,self._data_out ,self._zmq_in,self._zmq_out)
         self._fdm.exchange_register(self._zmq_tool)
+
     def run(self):
         self.setup()
         self._fdm.realtime(self._dt)
+
     def stop(self):
         self.terminate()
+
     @classmethod
     def cmd_norm(cls, value):
         """
@@ -317,6 +330,7 @@ class Plane(AircraftTemplate):
         value = float(value)
         value01 = (value - cls.MIN_SERVO_PPM)/(cls.MAX_SERVO_PPM - cls.MIN_SERVO_PPM)
         return (cls.CMD_MAX - cls.CMD_MIN)*value01 + cls.CMD_MIN
+
     @classmethod
     def thr_norm(cls, value):
         """
@@ -327,6 +341,7 @@ class Plane(AircraftTemplate):
         value = float(value)
         value01 = (value - cls.MIN_SERVO_PPM)/(cls.MAX_SERVO_PPM - cls.MIN_SERVO_PPM)
         return (cls.THR_MAX - cls.THR_MIN)*value01 + cls.THR_MIN
+
     @classmethod
     def mav_2_FL(cls, mavlink_msg, wind_data):
         """
@@ -337,12 +352,12 @@ class Plane(AircraftTemplate):
         """
         if(mavlink_msg.get_type() == 'SERVO_OUTPUT_RAW'):
             return (
-                    -cls.cmd_norm(mavlink_msg.__dict__['servo1_raw']),
-                    cls.cmd_norm(mavlink_msg.__dict__['servo2_raw']),
-                    cls.thr_norm(mavlink_msg.__dict__['servo3_raw']),
-                    cls.cmd_norm(mavlink_msg.__dict__['servo4_raw']),
-                    wind_data[0],
-                    wind_data[1],
-                    wind_data[2],
+                    -cls.cmd_norm(mavlink_msg.__dict__['servo1_raw']),              # 'fcs/aileron-cmd-norm'
+                    cls.cmd_norm(mavlink_msg.__dict__['servo2_raw']),               # 'fcs/elevator-cmd-norm'
+                    cls.thr_norm(mavlink_msg.__dict__['servo3_raw']),               # 'fcs/rudder-cmd-norm'
+                    cls.cmd_norm(mavlink_msg.__dict__['servo4_raw']),               # 'fcs/throttle-cmd-norm'
+                    wind_data[0],                                                   # 'atmosphere/wind-north-fps'
+                    wind_data[1],                                                   # 'atmosphere/wind-east-fps'
+                    wind_data[2],                                                   # 'atmosphere/wind-down-fps'
                     )
         return None

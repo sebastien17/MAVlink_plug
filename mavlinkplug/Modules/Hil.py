@@ -237,14 +237,14 @@ class Hil(ZmqBase):
         self._last_jsbsim_msg = msg[0]  # get the first (and only) part of the message
         self._last_jsbsim_msg_time = time()
         self._logging(self._last_jsbsim_msg)
-        #self._deg_coordinates_tuple = (parameters[5], parameters[6])
-        #self._thermals_management(self._deg_coordinates_tuple)
-        #self._thermals_management(self._deg_coordinates_tuple)
+        self._deg_coordinates_tuple = self._Aircraft_Type_cls.deg_coordinate_tuple(self._last_jsbsim_msg)
+        self._thermals_management()
+
 
     def add_thermal(self, deg_lat_long_tuple, amplitude, D_param):
         self._thermal_list.append(tuple(deg_lat_long_tuple, amplitude, D_param))
 
-    def _thermals_management(self, deg_coordinates_tuple):
+    def _thermals_management(self):
         self._thermal_wind_NED = (0.0, 0.0, 0.0)
 
         def myadd(xs,ys):
