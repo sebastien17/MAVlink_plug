@@ -20,7 +20,6 @@
 
 #Core Module
 from __future__ import print_function
-import logging
 from time import sleep
 
 #External Module
@@ -57,21 +56,18 @@ class Plug(object):
         self._processd.setsockopt_in(zmq.SUBSCRIBE,b'')
         self._ident = 254
         self._ident_number = 1
-        logging.info('Plug initialized')
-        
+
     def plug_info(self, increment = True):
         if(increment):
             self._ident_number = self._ident_number + 1
         return (self.zmq_bridge_in, self.zmq_bridge_out, self._ident_number - 1)
     def start(self):
-        logging.info('Plug starting')
         self._processd.start()
     @staticmethod  
     def server_forever():
-        logging.info('Serving forever !!!')
+
         while(True):
             try:
                 sleep(1)
             except(KeyboardInterrupt, SystemExit):
-                logging.info('Closing Plug')
                 break

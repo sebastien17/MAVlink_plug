@@ -20,29 +20,26 @@
 
 if(__name__ == '__main__'):
 
+    from mavlinkplug import set_mavlink_dialect
     import mavlinkplug.Modules.MavConnection
     import mavlinkplug.Modules.FileWriter
+    import mavlinkplug.Modules.TcpConnection
     import mavlinkplug.Plug
-    import logging
 
-    #Handling logging options
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    handler = logging.StreamHandler()
-    handler.setLevel(logging.INFO)
-    formatter = logging.Formatter(' %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    set_mavlink_dialect('pixhawk')
 
     #Creating plug
     plug = mavlinkplug.Plug.Plug()
     plug.start()
 
     #Set a mavlink connection with  MAVlink ready devices
-    mav_con_01 = mavlinkplug.Modules.MavConnection.MavConnection(plug.plug_info(), 'COM7', dialect='ardupilotmega', baud=115200)
+    mav_con_01 = mavlinkplug.Modules.MavConnection.MavConnection(plug.plug_info(), 'COM3', baud=115200)
 
     #Set a output file
     file_output = mavlinkplug.Modules.FileWriter.FileWriter(plug.plug_info(), 'Test_GroundControl.log')
+
+    #Set a connection for GC
+    gc_connection = mavlinkplug.Modules.TcpConnection.TcpConnection(plug.plug_info(), ('', 17562), mav_con_01.ident())
 
     #Start all modules
     file_output.start()

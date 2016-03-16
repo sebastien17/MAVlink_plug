@@ -50,7 +50,7 @@ class MavConnection(ModBase):
         self._logging('Connection initializing')
         while(self._run):
             try:
-                self._mavh = mavutil.mavlink_connection(*self._argv,**self._kwargs)
+                self._mavh = mavutil.mavlink_connection(*self._argv, dialect = mavlinkplug._MAVLINKPLUG_DIALECT,**self._kwargs)
             except SerialException as e:
                 self._mavh = None
                 sleep(1)                                #Wait 1 second until next try
@@ -86,7 +86,7 @@ class MavConnection(ModBase):
                     time_idle = None
                     self._in_msg += 1
                     try:
-                        plug_message.header.timestamp = long(msg._timestamp*1000)
+                        plug_message.header.timestamp = long(time())
                         plug_message.data.value = msg.get_msgbuf()
                     except(Exception) as e :
                         self._logging(e.message, type = 'DEBUG')
@@ -179,7 +179,7 @@ class MavConnection(ModBase):
     def stop(self):
         self._run == False
     def _logging(self, msg, type='INFO'):
-         logging_message = mavlinkplug.Message.LogData.build_full_message_from( 0,
+         logging_message = mavlinkplug.Message.LogData.build_full_message_from( mavlinkplug.Message.DESTINATION.ALL.value,
                                                                                 self._ident,
                                                                                 long(time()),
                                                                                 type+': '+ msg

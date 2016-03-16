@@ -23,7 +23,7 @@ from json import dumps
 
 # Managing Mavlink dialect
 import mavlinkplug
-print('Importing ' + mavlinkplug._MAVLINKPLUG_DIALECT)
+
 mavlink = __import__('pymavlink.dialects.v10.' + mavlinkplug._MAVLINKPLUG_DIALECT, globals(), locals(), [''], -1)
 
 #import pymavlink.dialects.v10.pixhawk as mavlink

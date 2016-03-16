@@ -84,15 +84,15 @@ class Hil(ZmqBase):
                     self._last_sensor_send_time = actual_time
                     self._send_sensor_frame()
                 #Gps send
-                if(actual_time - self._last_gps_send_time > self._gps_period):
+                if(actual_time - self._last_gps_send_time > self._gps_period and self._hil_sensor == True):
                     self._last_gps_send_time = actual_time
                     self._send_gps_frame()
                 #Energy send
                 if(actual_time - self._last_energy_send_time > 1.0/5):
                     self._last_energy_send_time = actual_time
                     self._send_energy_frame()
-            #100 Hz Cycle
-            yield gen.Task(self._loop.instance().add_timeout, time() + 0.01)
+            #60 Hz Cycle
+            yield gen.Task(self._loop.instance().add_timeout, time() + 1.0/60)
 
     def _get_MAVlink_Plug_Message(self, msg):
         _msg = msg[0] #get the first (and only) part of the message
@@ -125,7 +125,7 @@ class Hil(ZmqBase):
             self._logging('WAIT_FOR_ALIVE phase start')
         if(msg.header.type == mavlinkplug.Message.TYPE.MAV_MSG.value and msg.data.value.get_type() == 'HEARTBEAT'):
             self._hb_count += 1
-        if(self._hb_count == 10):
+        if(self._hb_count == 3):
             self._hb_count = 0
             self._phase = 11 #Go to RESET
             self._logging('WAIT_FOR_ALIVE phase end')
@@ -266,7 +266,7 @@ class Hil(ZmqBase):
         return result
 
     def _logging(self, msg, type = 'INFO'):
-         logging_message = mavlinkplug.Message.LogData.build_full_message_from( 0,
+         logging_message = mavlinkplug.Message.LogData.build_full_message_from( mavlinkplug.Message.DESTINATION.ALL.value,
                                                                                 self._ident,
                                                                                 long(time()),
                                                                                 type+': '+ msg

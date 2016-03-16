@@ -104,9 +104,9 @@ class AircraftTemplate(multiprocessing.Process):
                             data['accelerations/udot-ft_sec2'],                     #xacc   m/s**2  float
                             data['accelerations/vdot-ft_sec2'],                     #yacc   m/s**2  float
                             data['accelerations/wdot-ft_sec2'],                     #zacc   m/s**2  float
-                            data['velocities/phidot-rad_sec_bf'],                   #xgyro  rad/s   float
-                            data['velocities/thetadot-rad_sec_bf'],                 #ygyro  rad/s   float
-                            data['velocities/psidot-rad_sec_bf'],                   #zgyro  rad/s   float
+                            data['velocities/phidot-rad_sec'],                   #xgyro  rad/s   float
+                            data['velocities/thetadot-rad_sec'],                 #ygyro  rad/s   float
+                            data['velocities/psidot-rad_sec'],                   #zgyro  rad/s   float
                             data['sensors/magnetometer/X/output'],                  #xmag   Gauss   float
                             data['sensors/magnetometer/Y/output'],                  #ymag   Gauss   float
                             data['sensors/magnetometer/Z/output'],                  #zmag   Gauss   float
@@ -205,13 +205,14 @@ class AircraftTemplate(multiprocessing.Process):
 
         #Data treatment
         message_data = [
-            int(data['simulation/sim-time-sec']*cls._sec2usec),                 # time           usec
+            1000000000,
+            #int(data['simulation/sim-time-sec']*cls._sec2usec),                 # time           usec
             data['attitude/phi-rad'],                                           # phi            rad         float
             data['attitude/theta-rad'],                                         # theta          rad         float
             data['attitude/psi-rad'],                                           # psi            rad         float
-            data['velocities/phidot-rad_sec_bf'],                               # rollspeed      rad.s-1     float
-            data['velocities/thetadot-rad_sec_bf'],                             # pitchspeed     rad.s-1     float
-            data['velocities/psidot-rad_sec_bf'],                               # yawspeed       rad.s-1     float
+            data['velocities/phidot-rad_sec'],                               # rollspeed      rad.s-1     float
+            data['velocities/thetadot-rad_sec'],                             # pitchspeed     rad.s-1     float
+            data['velocities/psidot-rad_sec'],                               # yawspeed       rad.s-1     float
             int(data['position/lat-gc-rad']*cls._rad2degE7),                    # lat            10e7.deg    int
             int(data['position/long-gc-rad']*cls._rad2degE7),                   # lon            10e7.deg    int
             int(data['position/h-sl-ft']*cls._ft2m*cls._m2mm),                  # alt            mm          int
@@ -240,7 +241,7 @@ class AircraftTemplate(multiprocessing.Process):
     @classmethod
     def deg_coordinate_tuple(cls, msg):
         data = cls.message2data(msg)
-        return data[0]*cls._rad2deg, data[1]*cls._rad2deg
+        return data['position/lat-gc-rad']*cls._rad2deg, data['position/long-gc-rad']*cls._rad2deg
 
 
     @classmethod
@@ -275,7 +276,7 @@ class Plane(AircraftTemplate):
     CMD_MIN = -1.0
     CMD_MAX = 1.0
 
-    def __init__(self, zmq_context = None, zmq_in = None, zmq_out = None, daemon = True, lat=43.6042600, lon=1.4436700, terrain_elev_ft = 400, h_agl_ft = 10000, fdm_model = 'easystar', jsbsim_root = None, dt = 1.0/30):
+    def __init__(self, zmq_context = None, zmq_in = None, zmq_out = None, daemon = True, lat=43.6042600, lon=1.4436700, terrain_elev_ft = 400, h_agl_ft = 10000, fdm_model = 'c172p', jsbsim_root = None, dt = 1.0/30):
         super(Plane,self).__init__()
         self._zmq_context = zmq_context
         self._zmq_in = zmq_in
@@ -304,7 +305,7 @@ class Plane(AircraftTemplate):
         self._fdm.set_property_value("ic/phi-deg",0.0)                                      # Roll
         # self._fdm.set_property_value("ic/theta-deg",0.0)                                    # Pitch
         self._fdm.set_property_value("ic/psi-true-deg",110.0)                               # Heading
-        self._fdm.set_property_value("ic/vt-kts",20)
+        self._fdm.set_property_value("ic/vt-kts",90)
         #Fdm Trim
         #self._fdm.do_trim(1)
         # Zmq setup

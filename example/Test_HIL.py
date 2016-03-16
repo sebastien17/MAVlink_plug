@@ -22,12 +22,16 @@ if(__name__ == '__main__'):
 
 
     #Internal module
+    from mavlinkplug import set_mavlink_dialect
     import mavlinkplug.Plug
     import mavlinkplug.Modules.FileWriter
     import mavlinkplug.Modules.MavConnection
     import mavlinkplug.Modules.TcpConnection
     import mavlinkplug.Modules.Hil
     import mavlinkplug.Modules.AircraftType
+
+    #Dialect to pixhawk
+    set_mavlink_dialect('pixhawk')
 
     # Creating plug
     plug = mavlinkplug.Plug.Plug()
@@ -38,7 +42,7 @@ if(__name__ == '__main__'):
     file_output.start()
 
     #Set a mavlink connection with  MAVlink ready devices
-    mav_con_01 = mavlinkplug.Modules.MavConnection.MavConnection(plug.plug_info(), 'COM3', dialect='ardupilotmega', baud=115200)
+    mav_con_01 = mavlinkplug.Modules.MavConnection.MavConnection(plug.plug_info(), 'COM3', baud=115200)
     mav_con_01.start() #Mavlink connection start
 
     #Set a connection for GC

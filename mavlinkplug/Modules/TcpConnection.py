@@ -28,7 +28,7 @@ import socket
 import multiprocessing
 
 #Internal Module
-import  mavlinkplug.Message
+import mavlinkplug.Message
 from mavlinkplug.Base import in_thread
 from mavlinkplug.Exception import Exception
 
@@ -36,12 +36,12 @@ class TcpConnection(multiprocessing.Process):
     def __init__(self, module_info, tcp_tuple, mav_connection_ident, name = None):
         super(TcpConnection, self).__init__()
         self._addr_to_plug, self._addr_from_plug, self._ident =  module_info
-        self._stream2Plug = None
-        self._streamFromPlug = None
+        _stream2Plug = None
+        _streamFromPlug = None
         self._tcp_tuple = tcp_tuple
         self._mav_connection_ident = mav_connection_ident
         self._run = True
-        self._subscribe = ['']
+        self._subscribe = [str(mavlinkplug.Message.TYPE.MAV_MSG.value), str(self._ident)]
         if(name == None ):
             self._name = 'TCPConnection_' + str(self._ident)
         else:
@@ -69,22 +69,23 @@ class TcpConnection(multiprocessing.Process):
     @in_thread()
     def _ZMQ_2_UDP(self):
         #Create ZMQ socket
-        _zmq_from_plug = self._zmq_context.socket(zmq.SUB)
+        _streamFromPlug = self._zmq_context.socket(zmq.SUB)
         for opt in self._subscribe:
-                _zmq_from_plug.setsockopt(zmq.SUBSCRIBE, opt)
-        _zmq_from_plug.connect(self._addr_from_plug)
+                _streamFromPlug.setsockopt(zmq.SUBSCRIBE, opt)
+        _streamFromPlug.connect(self._addr_from_plug)
         while(self._connection_activated):
-            mavlinkplug_message = mavlinkplug.Message.Message().unpack_from(_zmq_from_plug.recv())
+            mavlinkplug_message = mavlinkplug.Message.Message().unpack_from(_streamFromPlug.recv())
             if(mavlinkplug_message.header.type == mavlinkplug.Message.TYPE.MAV_MSG.value and mavlinkplug_message.header.source == self._mav_connection_ident):
                 try:
                     self._connection_h.send(mavlinkplug_message.data.packed)
                 except:
                     self._connection_activated = False
+
     @in_thread()
     def _UDP_2_ZMQ(self):
         #Create ZMQ socket
-        _zmq_to_plug = self._zmq_context.socket(zmq.PUB)
-        _zmq_to_plug.connect(self._addr_to_plug)
+        _stream2Plug = self._zmq_context.socket(zmq.PUB)
+        _stream2Plug.connect(self._addr_to_plug)
         _header = mavlinkplug.Message.Header().build_from(self._mav_connection_ident,
                                                           self._ident,
                                                           mavlinkplug.Message.TYPE.RAW.value,
@@ -97,17 +98,17 @@ class TcpConnection(multiprocessing.Process):
             except:
                 self._connection_activated = False
             else:
-                _mavlink_plug_message.header.timestamp = long(time()*1000)
+                _mavlink_plug_message.header.timestamp = long(time())
                 try:
                     _mavlink_plug_message.data =  mavlinkplug.Message.MAVLinkData(_in_data)
                 except(Exception) :
                     _mavlink_plug_message.data =  mavlinkplug.Message.RawData(_in_data)
-                _zmq_to_plug.send(_mavlink_plug_message.packed)
+                _stream2Plug.send(_mavlink_plug_message.packed)
+
     def stop(self):
         self._run = False
         self._logging('Closing')
         self.terminate()
+
     def _logging(self, msg, type = 'INFO'):
          pass
-         #logging_message = mavlinkplug.Message.LogData.build_full_message_from( 0, self._ident, long(time()), type+': '+ msg )
-         #self._stream2Plug.send(logging_message.packed)

@@ -47,7 +47,7 @@ class FileWriter(ZmqBase):
         self._streamFromPlug = self.stream(zmq.SUB, self._addr_from_plug, bind = False, callback = self._plug_2_file, subscribe = self._subscribe)
         self._stream2Plug  = self.stream(zmq.PUB, self._addr_to_plug, bind = False)
         self._file_descriptor = open(self._file_name, 'w', 100)
-        self._logging('Initializing')
+        self._logging('Initializing {0}'.format(self._name))
     def _plug_2_file(self, p_msg):
         plug_msg = mavlinkplug.Message.Message().unpack_from(p_msg[0])
         string_to_write = '{0}\t{1}\t{2}\t{3}\t{4}'.format(plug_msg.header.timestamp, plug_msg.header.destination, plug_msg.header.source, plug_msg.header.type, plug_msg.data.value)
@@ -57,7 +57,7 @@ class FileWriter(ZmqBase):
         self._file_descriptor.close()
         self._logging('Closing')
     def _logging(self, msg, type = 'INFO'):
-         logging_message = mavlinkplug.Message.LogData.build_full_message_from( 0,
+         logging_message = mavlinkplug.Message.LogData.build_full_message_from( mavlinkplug.Message.DESTINATION.ALL.value,
                                                                                 self._ident,
                                                                                 long(time()),
                                                                                 type+': '+ msg
