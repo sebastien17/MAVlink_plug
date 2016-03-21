@@ -36,13 +36,13 @@ if(__name__ == '__main__'):
     mav_con_01 = mavlinkplug.Modules.MavConnection.MavConnection(plug.plug_info(), 'COM3', baud=115200)
 
     #Set a output file
-    file_output = mavlinkplug.Modules.FileWriter.FileWriter(plug.plug_info(), 'Test_GroundControl.log')
+    #file_output = mavlinkplug.Modules.FileWriter.FileWriter(plug.plug_info(), 'Test_GroundControl.log')
 
     #Set a connection for GC
-    gc_connection = mavlinkplug.Modules.TcpConnection.TcpConnection(plug.plug_info(), ('', 17562), mav_con_01.ident())
+    gc_connection = mavlinkplug.Modules.TcpConnection.TcpConnection(plug.plug_info(), ('127.0.0.1', 17562), mav_con_01.ident())
 
     #Start all modules
-    file_output.start()
+    #file_output.start()
     gc_connection.start()
     mav_con_01.start()
 

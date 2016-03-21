@@ -45,19 +45,23 @@ class ZmqBase(multiprocessing.Process):
     def __init__(self, zmq_context = None):
         super(ZmqBase, self).__init__()
         self._zmq_context =  zmq_context
+        self._stream2Plug = None
+        self._streamFromPlug = None
         self._loop = None
         self._ident = None
         self._default_subscribe = [mavlinkplug.Message.DESTINATION.ALL.p_value]
         self._running = False
+
     def setup(self):
         if(self._zmq_context == None):
             self._zmq_context = zmq.Context()
         self._loop = ioloop.IOLoop.instance()
+
     def stream(self, sock_type, addr, bind = True, callback=None, subscribe=None):
         if(subscribe == None):
             subscribe = self._default_subscribe
         sock = self._zmq_context.socket(sock_type)
-        if (sock_type == zmq.SUB):
+        if sock_type == zmq.SUB:
             for opt in subscribe:
                 sock.setsockopt(zmq.SUBSCRIBE, opt)
         if (bind):
@@ -66,16 +70,20 @@ class ZmqBase(multiprocessing.Process):
             sock.connect(addr)
         _stream = zmqstream.ZMQStream(sock, self._loop)
         _stream.flush(zmq.POLLIN|zmq.POLLOUT)
-        if (callback):
+        if callback:
             _stream.on_recv(callback)
         return _stream
+
     def run(self):
         self._running = True
         self.setup()
         self._loop.start()
+
     def stop(self):
-        self._logging.info('Stopping')
+        self._logging('Stopping')
+        self._loop.stop()
         self.terminate()
+
     def _logging(self, msg):
         pass
 

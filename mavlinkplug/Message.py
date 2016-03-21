@@ -376,6 +376,7 @@ class Message(object):
     @property
     def packed(self):
         return self.header.packed + self.data.packed
+
     def unpack_from(self, byte_message):
         self.header = Header()
         self.data = self.header.unpack_from(byte_message) #Check included !!!!
