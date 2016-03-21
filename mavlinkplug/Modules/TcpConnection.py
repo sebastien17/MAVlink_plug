@@ -52,7 +52,7 @@ class Connection(object):
             conn.send_message(b_data)
 
     def send_message(self, data):
-        self._stream.write(data)
+        self._stream.write(bytes(data))
 
     def on_close(self):
         Connection.clients.remove(self)
@@ -109,7 +109,6 @@ class TcpConnection(ZmqBase):
     def _process_zmq_stream(self, in_data):
         in_data = in_data[0]
         mavlinkplug_message = mavlinkplug.Message.Message().unpack_from(in_data)
-        print(type(mavlinkplug_message.data.packed))
         if mavlinkplug_message.header.type == mavlinkplug.Message.TYPE.MAV_MSG.value and mavlinkplug_message.header.source == self._mav_connection_ident:
             self._tcpserver.broadcast(mavlinkplug_message.data.packed)
 
