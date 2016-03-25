@@ -55,3 +55,11 @@ Install
 .. code-block:: bash
 
  python setup.py install
+ 
+JSBSim Install (Windows)
+------------------------
+
+* Install CMake for Windows : http://www.cmake.org/cmake/resources/software.html
+* Install MinGW : http://www.mingw.org/
+* Clone JSBSim source : git clone git://git.code.sf.net/p/jsbsim/code jsbsim-code
+
