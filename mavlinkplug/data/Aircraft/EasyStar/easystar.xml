@@ -674,5 +674,7 @@
         </channel>
     </system>
     <output name="localhost" type="FLIGHTGEAR" protocol="UDP" port="5500" rate="60">
-    </output>
+	</output>
+	<input port="1137">
+	</input>
 </fdm_config>
