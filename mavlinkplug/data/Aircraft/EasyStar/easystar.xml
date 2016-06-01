@@ -673,8 +673,45 @@
             </magnetometer>
         </channel>
     </system>
-    <output name="localhost" type="FLIGHTGEAR" protocol="UDP" port="5500" rate="60">
-	</output>
-	<input port="1137">
-	</input>
+
+    <input name="localhost" protocol="UDP" port="17133" rate="30" >
+	    <property>fcs/aileron-cmd-norm</property>
+        <property>fcs/elevator-cmd-norm</property>
+        <property>fcs/rudder-cmd-norm</property>
+        <property>fcs/throttle-cmd-norm</property>
+        <property>atmosphere/wind-north-fps</property>
+        <property>atmosphere/wind-east-fps</property>
+        <property>atmosphere/wind-down-fps</property>
+    </input>
+
+    <input port="17137">
+    </input>
+
+    <output name="localhost" protocol="UDP" port="17139" rate="60">
+        <property>position/lat-gc-rad</property>
+        <property>position/long-gc-rad</property>
+        <property>position/h-sl-ft</property>
+        <property>accelerations/udot-ft_sec2</property>
+        <property>accelerations/vdot-ft_sec2</property>
+        <property>accelerations/wdot-ft_sec2</property>
+        <property>velocities/phidot-rad_sec</property>
+        <property>velocities/thetadot-rad_sec</property>
+        <property>velocities/psidot-rad_sec</property>
+        <property>atmosphere/P-psf</property>
+        <property>atmosphere/pressure-altitude</property>
+        <property>attitude/heading-true-rad</property>
+        <property>sensors/magnetometer/X/output</property>
+        <property>sensors/magnetometer/Y/output</property>
+        <property>sensors/magnetometer/Z/output</property>
+        <property>velocities/v-north-fps</property>
+        <property>velocities/v-east-fps</property>
+        <property>velocities/v-down-fps</property>
+        <property>velocities/vtrue-fps</property>
+        <property>velocities/vc-fps</property>
+        <property>attitude/phi-rad</property>
+        <property>attitude/theta-rad</property>
+        <property>attitude/psi-rad</property>
+        <property>simulation/sim-time-sec</property>
+    </output>
+
 </fdm_config>

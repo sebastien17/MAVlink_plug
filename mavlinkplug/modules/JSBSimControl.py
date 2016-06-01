@@ -28,6 +28,9 @@ JSBSIM_DEFAULT_EXEC =  os.path.dirname(__file__) + os.sep + '..' + os.sep + 'dat
 
 
 class JSBSimControl(object):
+    input_port = 17133
+    telnet_port = 17137
+    output_port = 17139
 
     def __init__(self):
         self.jsbrootpath = JSBSIM_DEFAULT_ROOT_PATH
@@ -37,8 +40,7 @@ class JSBSimControl(object):
         self.defaultcommand = [self.jsbexec, '--realtime', '--nice', '--suspend', '--root=' + self.jsbrootpath, '--aircraft=' + self.aircraft, '--initfile=' + self.initfile]
         self.process_h = None
         self.jsb_in_tn = None
-        self.jsb_in_address_port = ('127.0.0.1',1137)
-
+        self.jsb_in_address_port = ('127.0.0.1',self.telnet_port)
 
     def launch(self):
         self.process_h = subprocess.Popen(self.defaultcommand)

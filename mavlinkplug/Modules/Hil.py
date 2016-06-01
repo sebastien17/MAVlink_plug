@@ -25,10 +25,50 @@ from mavlinkplug.Base import ZmqBase
 import mavlinkplug.Message, mavlinkplug.Tools
 from tornado import gen
 
-#Constant
-ENERGY_MSG_HEADER  = 'KE_PE'
-
 class Hil(ZmqBase):
+
+    _g = 9.80665
+    _sec2usec = 1.0e6
+    _sec2msec = 1.0e3
+    _rad2deg = 180.0/math.pi
+    _rad2degE7 = 1.0e7*180.0/math.pi
+    _deg2rad = math.pi/180.0
+    _m2mm = 1000.0
+    _m2cm = 100.0
+    _ft2m = 0.3048
+    _mpss2mg =1000.0/_g
+    ENERGY_MSG_HEADER  = 'KE_PE'
+
+    _data_FL_out = [
+    # for HIL_GPS
+    'position/lat-gc-rad',          #0
+    'position/long-gc-rad',         #1
+    'position/h-sl-ft',             #2
+    # for HIL_SENSOR
+    'accelerations/udot-ft_sec2',   #3
+    'accelerations/vdot-ft_sec2',   #4
+    'accelerations/wdot-ft_sec2',   #5
+    'velocities/phidot-rad_sec',    #6
+    'velocities/thetadot-rad_sec',  #7
+    'velocities/psidot-rad_sec',    #8
+    'atmosphere/P-psf',             #9
+    'atmosphere/pressure-altitude', #10
+    'attitude/heading-true-rad',    #11
+    'sensors/magnetometer/X/output',#12
+    'sensors/magnetometer/Y/output',#13
+    'sensors/magnetometer/Z/output',#14
+    # for HIL_STATE
+    'velocities/v-north-fps',       #15
+    'velocities/v-east-fps',        #16
+    'velocities/v-down-fps',        #17
+    'velocities/vtrue-fps',         #18
+    'velocities/vc-fps',            #19
+    'attitude/phi-rad',             #20
+    'attitude/theta-rad',           #21
+    'attitude/psi-rad',             #22
+    'simulation/sim-time-sec'       #23
+    ]
+
     def __init__(self, module_info, mavlink_connection_ident, Aircraft_Type_cls, hil_sensor=True, quaternion=True, state_freq = 30.0, sensor_freq = 20.0, gps_freq = 5.0,  name=None):
         super(Hil, self).__init__()
         self._mavlink_connection_ident = mavlink_connection_ident
@@ -52,7 +92,7 @@ class Hil(ZmqBase):
         self._last_jsbsim_msg = None
         self._last_jsbsim_msg_time = time()
         if(name == None ):
-            self._name = 'FileWriter_' + str(self._ident)
+            self._name = 'Hil_' + str(self._ident)
         else:
             self._name = name
     def setup(self):
@@ -60,15 +100,16 @@ class Hil(ZmqBase):
         # Initializing message callback
         # Define stream listening from plug
         self.stream(zmq.SUB, self._addr_from_plug, bind = False, callback = self._plug_2_FL)
-        #Define stream publishing to FL
-        self._stream_to_FL  = self.stream(zmq.PUB, self._addr_to_FL)
-        #Define stream listening from FL
-        self.stream(zmq.SUB, self._addr_from_FL, callback = self._FL_2_plug, subscribe = [b''])
         #Define stream publishing to plug
         self._stream2Plug  = self.stream(zmq.PUB, self._addr_to_plug, bind = False)
         #Install scheduler in IOloop
         self._loop.add_callback(self._scheduler)
 
+
+        #Define stream publishing to FL
+        self._stream_to_FL  = self.stream(zmq.PUB, self._addr_to_FL)
+        #Define stream listening from FL
+        self.stream(zmq.SUB, self._addr_from_FL, callback = self._FL_2_plug, subscribe = [b''])
 
     @gen.engine
     def _scheduler(self):
@@ -184,13 +225,13 @@ class Hil(ZmqBase):
                 # HIL State Quaternion Mavlink Message Creation
                 # 'time_usec', 'attitude_quaternion', 'rollspeed', 'pitchspeed', 'yawspeed',
                 # 'lat', 'lon', 'alt', 'vx', 'vy', 'vz', 'ind_airspeed', 'true_airspeed', 'xacc', 'yacc', 'zacc']
-                parameters = self._Aircraft_Type_cls.FL_2_mav_state_quaternion(self._last_jsbsim_msg)
+                parameters = self.FL_2_mav_state_quaternion(self._last_jsbsim_msg)
                 mav_message_state = mavlinkplug.Message.mavlink.MAVLink_hil_state_quaternion_message(*parameters).pack(self._dumb_header)
             else:
                 # HIL State Mavlink Message Creation
                 # 'time_usec', 'roll', 'pitch', 'yaw', 'rollspeed', 'pitchspeed', 'yawspeed',
                 # 'lat', 'lon', 'alt', 'vx', 'vy', 'vz', 'xacc', 'yacc', 'zacc'
-                parameters = self._Aircraft_Type_cls.FL_2_mav_state(self._last_jsbsim_msg)
+                parameters = self.FL_2_mav_state(self._last_jsbsim_msg)
                 mav_message_state = mavlinkplug.Message.mavlink.MAVLink_hil_state_message(*parameters).pack(self._dumb_header)
         except Exception as e:
             self._logging(e.message)
@@ -203,7 +244,7 @@ class Hil(ZmqBase):
             # HIL sensor Mavlink Message Creation
             # 'time_msec', 'xacc', 'yacc', 'zacc', 'xgyro', 'ygyro', 'zgyro', 'xmag', 'ymag', 'zmag',
             # 'abs_pressure in millibar', 'diff_pressure', 'pressure_alt', 'temperature', 'fields_updated'
-            parameters_sensors = self._Aircraft_Type_cls.FL_2_mav_sensor(self._last_jsbsim_msg)
+            parameters_sensors = self.FL_2_mav_sensor(self._last_jsbsim_msg)
             mav_message_sensor = mavlinkplug.Message.mavlink.MAVLink_hil_sensor_message(*parameters_sensors).pack(self._dumb_header)
 
         except Exception as e:
@@ -214,7 +255,7 @@ class Hil(ZmqBase):
 
     def _send_gps_frame(self):
         try:
-            parameters_gps = self._Aircraft_Type_cls.FL_2_mav_gps(self._last_jsbsim_msg)
+            parameters_gps = self.FL_2_mav_gps(self._last_jsbsim_msg)
             mav_message_gps = mavlinkplug.Message.mavlink.MAVLink_hil_gps_message(*parameters_gps).pack(self._dumb_header)
         except Exception as e:
             self._logging(e.message)
@@ -224,7 +265,7 @@ class Hil(ZmqBase):
 
     def _send_energy_frame(self):
         #Energy Information Message Creation
-        raw_string = "{0} {1} {2}".format(ENERGY_MSG_HEADER, self._Aircraft_Type_cls.kinetic_energy(self._last_jsbsim_msg),self._Aircraft_Type_cls.potential_energy(self._last_jsbsim_msg))
+        raw_string = "{0} {1} {2}".format(self.ENERGY_MSG_HEADER, self.kinetic_energy(self._last_jsbsim_msg),self.potential_energy(self._last_jsbsim_msg))
         energy_message = mavlinkplug.Message.RawData.build_full_message_from(mavlinkplug.Message.DESTINATION.ALL.value, self._ident, long(time()), raw_string )
         self._stream2Plug.send(energy_message.packed)
 
@@ -237,7 +278,7 @@ class Hil(ZmqBase):
         self._last_jsbsim_msg = msg[0]  # get the first (and only) part of the message
         self._last_jsbsim_msg_time = time()
         self._logging(self._last_jsbsim_msg)
-        self._deg_coordinates_tuple = self._Aircraft_Type_cls.deg_coordinate_tuple(self._last_jsbsim_msg)
+        self._deg_coordinates_tuple = self.deg_coordinate_tuple(self._last_jsbsim_msg)
         self._thermals_management()
 
 
@@ -272,3 +313,179 @@ class Hil(ZmqBase):
                                                                                 type+': '+ msg
                                                                                 )
          self._stream2Plug.send(logging_message.packed)
+
+#############################################################################
+
+
+    def attitude_quaternion(self, phi, theta, psi):
+        return [
+            math.cos(phi/2)*math.cos(theta/2)*math.cos(psi/2)+math.sin(phi/2)*math.sin(theta/2)*math.sin(psi/2),
+            math.sin(phi/2)*math.cos(theta/2)*math.cos(psi/2)-math.cos(phi/2)*math.sin(theta/2)*math.sin(psi/2),
+            math.cos(phi/2)*math.sin(theta/2)*math.cos(psi/2)+math.sin(phi/2)*math.cos(theta/2)*math.sin(psi/2),
+            math.cos(phi/2)*math.cos(theta/2)*math.sin(psi/2)-math.sin(phi/2)*math.sin(theta/2)*math.cos(psi/2)
+               ]
+
+    def FL_2_mav_sensor(self, msg):
+        """
+        Translate output "data_out" to parameter for MAVLink_hil_sensor_message Pymavlink function
+        :param string: ZMQ message string including  _data_out values (Human Readable)
+        :return: function parameter for mavlink message "MAVLink_hil_sensor_message"
+        """
+        data = self.message2data(msg)
+
+        (data['velocities/phidot-rad_sec_bf'],
+         data['velocities/thetadot-rad_sec_bf'],
+         data['velocities/psidot-rad_sec_bf']) = self.convert_body_frame(
+                data['attitude/phi-rad'],
+                data['attitude/theta-rad'],
+                data['velocities/phidot-rad_sec'],
+                data['velocities/thetadot-rad_sec'],
+                data['velocities/psidot-rad_sec']
+        )
+
+        #Data treatment
+        messagedata  = [
+                            int(data['simulation/sim-time-sec']*self._sec2usec),     #time_usec  boot time usec  int
+                            data['accelerations/udot-ft_sec2'],                     #xacc   m/s**2  float
+                            data['accelerations/vdot-ft_sec2'],                     #yacc   m/s**2  float
+                            data['accelerations/wdot-ft_sec2'],                     #zacc   m/s**2  float
+                            data['velocities/phidot-rad_sec'],                   #xgyro  rad/s   float
+                            data['velocities/thetadot-rad_sec'],                 #ygyro  rad/s   float
+                            data['velocities/psidot-rad_sec'],                   #zgyro  rad/s   float
+                            data['sensors/magnetometer/X/output'],                  #xmag   Gauss   float
+                            data['sensors/magnetometer/Y/output'],                  #ymag   Gauss   float
+                            data['sensors/magnetometer/Z/output'],                  #zmag   Gauss   float
+                            data['atmosphere/P-psf']*0.478802589,                   #abs_pr mbar    float
+                            0.0,                                                    #dif_pr mbar    float
+                            data['atmosphere/pressure-altitude'],                   #pr_alt meter   float
+                            15.0,                                                   #temp   C       float
+                            int(8186)                                              #fields_updated (ALL)
+                       ]
+
+        return messagedata
+
+    def FL_2_mav_gps(self, msg):
+        """
+        Translate output "data_out" to parameter for MAVLink_hil_gps_message Pymavlink function
+        :param string: ZMQ message string including  _data_out values (Human Readable)
+        :return: function parameter for mavlink message "MAVLink_hil_gps_message"
+        """
+        data = self.message2data(msg)
+
+
+        #Data treatment
+        messagedata  = [
+                            int(data['simulation/sim-time-sec']*self._sec2usec),     #time_usec  boot time usec  int
+                            3,                                                      #Fix_type    uint8_t	0-1: no fix, 2: 2D fix, 3: 3D fix. Some applications will not use the value of this field unless it is at least two, so always correctly fill in the fix.
+                            int(data['position/lat-gc-rad']*self._rad2degE7),        # lat            10e7.deg    int
+                            int(data['position/long-gc-rad']*self._rad2degE7),       # lon            10e7.deg    int
+                            int(data['position/h-sl-ft']*self._ft2m*self._m2mm),      # alt            mm          int
+                            65535,                                                  #eph    uint16_t	GPS HDOP horizontal dilution of position in cm (m*100). If unknown, set to: 65535
+                            65535,                                                  #epv	uint16_t	GPS VDOP vertical dilution of position in cm (m*100). If unknown, set to: 65535
+                            65535,                                                  #uint16_t	GPS ground speed (m/s * 100). If unknown, set to: 65535
+                            int(data['velocities/v-north-fps']*self._ft2m*self._m2cm),# vn             cm.s-1      int
+                            int(data['velocities/v-east-fps']*self._ft2m*self._m2cm), # ve             cm.s-1      int
+                            int(data['velocities/v-down-fps']*self._ft2m*self._m2cm), # vd             cm.s-1      int
+                            65535,                                                  #cog	uint16_t	Course over ground (NOT heading, but direction of movement) in degrees * 100, 0.0..359.99 degrees. If unknown, set to: 65535
+                            255,                                                    #satellites_visible	uint8_t	Number of satellites visible. If unknown, set to 255
+                       ]
+
+        return messagedata
+
+    def FL_2_mav_state_quaternion(self, msg):
+        """
+        Translate output "data_out" to parameter for MAVLink_hil_state_quaternion_message Pymavlink function
+        :param string: ZMQ message string including  _data_out values (Human Readable)
+        :return: function parameter for mavlink message "MAVLink_hil_state_quaternion_message"
+        """
+        data = self.message2data(msg)
+
+        #Attitude quaternion
+        quaternion = self.attitude_quaternion(data['attitude/phi-rad'], data['attitude/theta-rad'], data['attitude/psi-rad'])
+
+        #Data treatment
+        messagedata  = [
+                        int(data['simulation/sim-time-sec']*self._sec2msec), #time_msec
+                        quaternion,                                         #attitude_quaternion
+                        data['velocities/phidot-rad_sec'],                  #rollspeed
+                        data['velocities/thetadot-rad_sec'],                #pitchspeed
+                        data['velocities/psidot-rad_sec'],                  #yawspeed
+                        data['position/lat-gc-rad'],                        #lat
+                        data['position/long-gc-rad'],                       #lon
+                        data['position/h-sl-ft'],                           #alt
+                        data['velocities/v-north-fps'],                     #vx
+                        data['velocities/v-east-fps'],                      #vy
+                        data['velocities/v-down-fps'],                      #vz
+                        data['velocities/vc-fps'],                          #ind airspeed
+                        data['velocities/vtrue-fps'],                       #true airspeed
+                        data['accelerations/udot-ft_sec2'],                 #xacc
+                        data['accelerations/vdot-ft_sec2'],                 #yacc
+                        data['accelerations/wdot-ft_sec2'],                 #zacc
+                        ]
+        return messagedata
+
+    def FL_2_mav_state(self, msg):
+        """
+        Translate output "data_out" to parameter for MAVLink_hil_state_message Pymavlink function
+        :param msg: ZMQ message string including  _data_out values (Human Readable)
+        :return: function parameter for mavlink message "MAVLink_hil_state_quaternion_message"
+        """
+
+        data = self.message2data(msg)
+
+        (data['velocities/phidot-rad_sec_bf'],
+         data['velocities/thetadot-rad_sec_bf'],
+         data['velocities/psidot-rad_sec_bf']) = self.convert_body_frame(
+                data['attitude/phi-rad'],
+                data['attitude/theta-rad'],
+                data['velocities/phidot-rad_sec'],
+                data['velocities/thetadot-rad_sec'],
+                data['velocities/psidot-rad_sec']
+        )
+
+        # Data treatment
+        message_data = [
+            1000000000,
+            # int(data['simulation/sim-time-sec']*cls._sec2usec),                 # time           usec
+            data['attitude/phi-rad'],                                           # phi            rad         float
+            data['attitude/theta-rad'],                                         # theta          rad         float
+            data['attitude/psi-rad'],                                           # psi            rad         float
+            data['velocities/phidot-rad_sec'],                               # rollspeed      rad.s-1     float
+            data['velocities/thetadot-rad_sec'],                             # pitchspeed     rad.s-1     float
+            data['velocities/psidot-rad_sec'],                               # yawspeed       rad.s-1     float
+            int(data['position/lat-gc-rad']*self._rad2degE7),                    # lat            10e7.deg    int
+            int(data['position/long-gc-rad']*self._rad2degE7),                   # lon            10e7.deg    int
+            int(data['position/h-sl-ft']*self._ft2m*self._m2mm),                  # alt            mm          int
+            int(data['velocities/v-north-fps']*self._ft2m*self._m2cm),            # vx             cm.s-1      int
+            int(data['velocities/v-east-fps']*self._ft2m*self._m2cm),             # vy             cm.s-1      int
+            int(data['velocities/v-down-fps']*self._ft2m*self._m2cm),             # vz             cm.s-1      int
+            int(data['accelerations/udot-ft_sec2']*self._ft2m*self._mpss2mg),     # xacc           1000/g      int
+            int(data['accelerations/vdot-ft_sec2']*self._ft2m*self._mpss2mg),     # yacc           1000/g      int
+            int(data['accelerations/wdot-ft_sec2']*self._ft2m*self._mpss2mg)      # zacc           1000/g      int
+        ]
+        return message_data
+
+    def convert_body_frame(self, phi, theta, phiDot, thetaDot, psiDot):
+        '''convert a set of roll rates from earth frame to body frame'''
+        p = phiDot - psiDot*math.sin(theta)
+        q = math.cos(phi)*thetaDot + math.sin(phi)*psiDot*math.cos(theta)
+        r = math.cos(phi)*psiDot*math.cos(theta) - math.sin(phi)*thetaDot
+        return (p, q, r)
+
+    def message2data(self,msg):
+        temp = [float(i) for i in msg.split(" ")]
+        return dict(zip(self._data_FL_out,temp))
+
+    def deg_coordinate_tuple(self, msg):
+        data = self.message2data(msg)
+        return data['position/lat-gc-rad']*self._rad2deg, data['position/long-gc-rad']*self._rad2deg
+
+    def kinetic_energy(self, msg):
+        data = self.message2data(msg)
+        return 0.5*math.sqrt((data['velocities/v-north-fps']*self._ft2m)**2
+                      + (data['velocities/v-east-fps']*self._ft2m)**2
+                      + (data['velocities/v-down-fps']*self._ft2m)**2)
+
+    def potential_energy(self,msg):
+        data = self.message2data(msg)
+        return data['position/h-sl-ft']*self._ft2m*self._g
