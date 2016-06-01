@@ -47,28 +47,31 @@ class JSBSimControl(object):
         time.sleep(2)
         self.jsb_in_tn = telnetlib.Telnet(self.jsb_in_address_port[0],self.jsb_in_address_port[1], 10)
         self.jsb_in_tn.read_until('JSBSim>')
-        print(self.get('info'))
         print(self.get('help'))
 
-    def send(self, data):
+    def _send(self, data):
         self.jsb_in_tn.write(str(data) + '\n')
 
+    def set(self, list):
+        for key,val in list.items():
+            self._send("set {0} {1}".format(key,val))
+
     def get(self, data):
-        self.send(data)
-        response = self.jsb_in_tn.read_until('JSBSim>')[1:-len('JSBSim>')]
+        self._send(data)
+        response = self.jsb_in_tn.read_until("JSBSim>")[1:-len("JSBSim>")]
         return response
 
     def resume(self):
-        pass
+        self._send("resume")
 
-    def pause(self):
-        pass
-
-    def stop(self):
-        pass
+    def hold(self):
+        self._send("hold")
+        
+    def iterate(self,num):
+        self._send("iterate {0}".format(num))
 
     def terminate(self):
-        self.send('quit')
+        self._send("quit")
         self.jsb_in_tn.close()
         os.kill(self.process_h.pid, signal.SIGTERM)
 

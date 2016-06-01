@@ -23,6 +23,7 @@ from __future__ import print_function
 
 from os import path, sep
 import math
+import mavlinkplug.modules.JSBSimControl as JSBSimControl_mod
 
 
 class AircraftTemplate(object):
@@ -92,7 +93,9 @@ class EasyStar(object):
 
     def __init__(self):
         super(EasyStar,self).__init__()
-        
+        # Initialize JSBSimControl
+        self._JSBC = JSBSimControl_mod.JSBSimControl()
+        self._JSBC.launch()
         #Flight Loop setup
         #Initial Conditions
         self._fdm.set_property_value("ic/lat-gc-rad", self._lat_rad)
