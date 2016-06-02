@@ -674,7 +674,7 @@
         </channel>
     </system>
 
-    <input name="localhost" type="SOCKET" protocol="UDP" port="17133" rate="30" >
+    <input type="QTJSBSIM" port="17133" rate="30" >
 	    <property>fcs/aileron-cmd-norm</property>
         <property>fcs/elevator-cmd-norm</property>
         <property>fcs/rudder-cmd-norm</property>
@@ -687,7 +687,7 @@
     <input port="17137">
     </input>
 
-    <output name="localhost" type="SOCKET" protocol="UDP" port="17139" rate="60">
+     <output name="localhost" type="QTJSBSIM" port="17139" rate="60">
         <property>position/lat-gc-rad</property>
         <property>position/long-gc-rad</property>
         <property>position/h-sl-ft</property>
