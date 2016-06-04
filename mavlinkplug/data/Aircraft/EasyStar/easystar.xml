@@ -675,13 +675,14 @@
     </system>
 
     <input type="QTJSBSIM" port="17133" rate="30" >
-	    <property>fcs/aileron-cmd-norm</property>
+        <property>fcs/aileron-cmd-norm</property>
         <property>fcs/elevator-cmd-norm</property>
         <property>fcs/rudder-cmd-norm</property>
         <property>fcs/throttle-cmd-norm</property>
         <property>atmosphere/wind-north-fps</property>
         <property>atmosphere/wind-east-fps</property>
         <property>atmosphere/wind-down-fps</property>
+        <!--<property> simulation/terminate </property>-->
     </input>
 
     <input port="17137">

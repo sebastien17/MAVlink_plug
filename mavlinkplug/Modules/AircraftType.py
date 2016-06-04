@@ -21,8 +21,9 @@
 # Core import
 from __future__ import print_function
 
-from os import path, sep
-import math
+import math, time
+
+from tornado import gen, ioloop
 import mavlinkplug.modules.JSBSimControl as JSBSimControl_mod
 
 
@@ -89,31 +90,35 @@ class EasyStar(object):
         'atmosphere/wind-down-fps'
     ]
 
-
-
-    def __init__(self):
+    def __init__(self, io):
         super(EasyStar,self).__init__()
         # Initialize JSBSimControl
         self._JSBC = JSBSimControl_mod.JSBSimControl()
         self._JSBC.launch()
         #Flight Loop setup
         #Initial Conditions
-        self._fdm.set_property_value("ic/lat-gc-rad", self._lat_rad)
-        self._fdm.set_property_value("ic/long-gc-rad",self._long_rad)
-        self._fdm.set_property_value("ic/terrain-elevation-ft", self._terrain_elev_ft)
-        self._fdm.set_property_value("ic/h-agl-ft",self._h_agl_ft)
-        self._fdm.set_property_value("ic/phi-deg",0.0)                                      # Roll
-        # self._fdm.set_property_value("ic/theta-deg",0.0)                                  # Pitch
-        self._fdm.set_property_value("ic/psi-true-deg",110.0)                               # Heading
-        self._fdm.set_property_value("ic/vt-kts",90)
+        # self._fdm.set_property_value("ic/lat-gc-rad", self._lat_rad)
+        # self._fdm.set_property_value("ic/long-gc-rad",self._long_rad)
+        # self._fdm.set_property_value("ic/terrain-elevation-ft", self._terrain_elev_ft)
+        # self._fdm.set_property_value("ic/h-agl-ft",self._h_agl_ft)
+        # self._fdm.set_property_value("ic/phi-deg",0.0)                                      # Roll
+        # # self._fdm.set_property_value("ic/theta-deg",0.0)                                  # Pitch
+        # self._fdm.set_property_value("ic/psi-true-deg",110.0)                               # Heading
+        # self._fdm.set_property_value("ic/vt-kts",90)
         #Fdm Trim
+        self._prepared_msg = None
+        ioloop.IOLoop.current().add_callback(self._scheduler)
 
-    def run(self):
-        self.setup()
-        self._fdm.realtime(self._dt)
+    @gen.engine
+    def _scheduler(self):
+         while True:
+            #30 Hz Cycle
+            if(self._prepared_msg != None):
+                self.send_prepared_msg()
+            yield gen.Task(ioloop.IOLoop.current().add_timeout, time.time() + 1.0/30)
 
-    def stop(self):
-        self.terminate()
+    def run_FL(self):
+        self._JSBC.resume()
 
     def cmd_norm(self, value):
         """
@@ -144,6 +149,7 @@ class EasyStar(object):
         """
         if(mavlink_msg.get_type() == 'SERVO_OUTPUT_RAW'):
             return (
+                    time.time(),
                     -self.cmd_norm(mavlink_msg.__dict__['servo1_raw']),              # 'fcs/aileron-cmd-norm'
                     self.cmd_norm(mavlink_msg.__dict__['servo2_raw']),               # 'fcs/elevator-cmd-norm'
                     self.thr_norm(mavlink_msg.__dict__['servo3_raw']),               # 'fcs/rudder-cmd-norm'
@@ -153,3 +159,17 @@ class EasyStar(object):
                     wind_data[2],                                                   # 'atmosphere/wind-down-fps'
                     )
         return None
+
+    def store_msg(self,mav_data, wind_data):
+        data_2_FL = self.mav_2_FL(mav_data, wind_data)
+        if(data_2_FL != None):
+            self._prepared_msg = data_2_FL
+
+    def send_prepared_msg(self):
+        if(self._prepared_msg != None):
+            self._JSBC.socket_in.send(",".join(self._prepared_msg))
+            self._prepared_msg = None
+
+
+    def socket_out(self):
+        return self._JSBC.socket_out

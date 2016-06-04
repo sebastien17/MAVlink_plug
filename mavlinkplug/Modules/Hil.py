@@ -23,7 +23,7 @@ import zmq, math
 from time import sleep, time
 from mavlinkplug.Base import ZmqBase
 import mavlinkplug.Message, mavlinkplug.Tools
-from tornado import gen
+from tornado import gen, ioloop
 
 class Hil(ZmqBase):
 
@@ -40,6 +40,7 @@ class Hil(ZmqBase):
     ENERGY_MSG_HEADER  = 'KE_PE'
 
     _data_FL_out = [
+    'simulation/sim-time-sec',
     # for HIL_GPS
     'position/lat-gc-rad',          #0
     'position/long-gc-rad',         #1
@@ -65,8 +66,7 @@ class Hil(ZmqBase):
     'velocities/vc-fps',            #19
     'attitude/phi-rad',             #20
     'attitude/theta-rad',           #21
-    'attitude/psi-rad',             #22
-    'simulation/sim-time-sec'       #23
+    'attitude/psi-rad'              #22
     ]
 
     def __init__(self, module_info, mavlink_connection_ident, Aircraft_Type_cls, hil_sensor=True, quaternion=True, state_freq = 30.0, sensor_freq = 20.0, gps_freq = 5.0,  name=None):
@@ -78,23 +78,26 @@ class Hil(ZmqBase):
         self._Aircraft_Type_cls = Aircraft_Type_cls
         self._default_subscribe.append(mavlinkplug.Message.integer_pack(self._ident))
         self._dumb_header = mavlinkplug.Message.mavlink.MAVLink_header(0)
-        self._FL_loop_p = None
+        self._aircraft = None
         self._phase = 0
         self._hb_count = 0
         self._hil_sensor = hil_sensor
         self._quaternion = quaternion
         self._thermal_wind_NED = (0.0, 0.0, 0.0)
         self._thermal_list = []
-        self._last_energy_send_time = self._last_state_send_time = self._last_sensor_send_time = self._last_gps_send_time = time()
+        self._last_FL_send_time = self._last_energy_send_time = self._last_state_send_time = self._last_sensor_send_time = self._last_gps_send_time = time()
         self._state_period = 1.0/state_freq
         self._sensor_period = 1.0/sensor_freq
         self._gps_period = 1.0/gps_freq
         self._last_jsbsim_msg = None
-        self._last_jsbsim_msg_time = time()
+        self._last_mav_msg4FL = None
+        self._last_mav_msg4FL_time = time()
+
         if(name == None ):
             self._name = 'Hil_' + str(self._ident)
         else:
             self._name = name
+
     def setup(self):
         super(Hil, self).setup()
         # Initializing message callback
@@ -105,11 +108,8 @@ class Hil(ZmqBase):
         #Install scheduler in IOloop
         self._loop.add_callback(self._scheduler)
 
-
-        #Define stream publishing to FL
-        self._stream_to_FL  = self.stream(zmq.PUB, self._addr_to_FL)
         #Define stream listening from FL
-        self.stream(zmq.SUB, self._addr_from_FL, callback = self._FL_2_plug, subscribe = [b''])
+        self._loop.add_handler(self._aircraft.socket_out().fileno(), self._FL_2_plug, ioloop.IOLoop.READ)
 
     @gen.engine
     def _scheduler(self):
@@ -132,8 +132,14 @@ class Hil(ZmqBase):
                 if(actual_time - self._last_energy_send_time > 1.0/5):
                     self._last_energy_send_time = actual_time
                     self._send_energy_frame()
+                #FL send
+                if(actual_time - self._last_FL_send_time > 1.0/5):
+                    self._last_FL_send_time = actual_time
+                    self._aircraft.send_prepared_msg()
+
+
             #60 Hz Cycle
-            yield gen.Task(self._loop.instance().add_timeout, time() + 1.0/60)
+            yield gen.Task(self._loop.current().add_timeout, time() + 1.0/60)
 
     def _get_MAVlink_Plug_Message(self, msg):
         _msg = msg[0] #get the first (and only) part of the message
@@ -157,7 +163,7 @@ class Hil(ZmqBase):
 
     def _phase_INIT(self):
         self._logging('INIT phase start')
-        self._FL_loop_p = self._Aircraft_Type_cls(zmq_in = self._addr_to_FL, zmq_out = self._addr_from_FL, lat = 43.6042600, lon = 1.4436700) # Toulouse, France
+        self._aircraft = self._Aircraft_Type_cls()
         self._logging('INIT phase end')
         self._phase = 7 #Go to WAIT_FOR_ALIVE
 
@@ -197,7 +203,7 @@ class Hil(ZmqBase):
             self._hb_count += 1
         if(self._hb_count == 5):
             self._hb_count = 0
-            self._FL_loop_p.start()
+            self._aircraft.run()
             self._phase = 17 #Go to RESET
 
             self._logging('WAIT_HB phase end')
@@ -211,13 +217,7 @@ class Hil(ZmqBase):
         '''
 
         if(msg.header.type == mavlinkplug.Message.TYPE.MAV_MSG.value):
-            data_2_FL = self._Aircraft_Type_cls.mav_2_FL(msg.data.value, self._thermal_wind_NED)
-            if(data_2_FL != None):
-                #Stringify
-                data_2_FL = map(str,data_2_FL)
-                msg_2_FL = ' '.join(data_2_FL)
-                #Send to Flight Loop
-                self._stream_to_FL.send(msg_2_FL)
+            self._aircraft.store_msg(msg.data.value, self._thermal_wind_NED)
 
     def _send_state_frame(self):
         try:
@@ -269,14 +269,10 @@ class Hil(ZmqBase):
         energy_message = mavlinkplug.Message.RawData.build_full_message_from(mavlinkplug.Message.DESTINATION.ALL.value, self._ident, long(time()), raw_string )
         self._stream2Plug.send(energy_message.packed)
 
-    def _FL_2_plug(self, msg):
-        '''
-        Get message from FL and update msg
-        :param msg: ZMQ message from FL
-        :return: Nothing
-        '''
-        self._last_jsbsim_msg = msg[0]  # get the first (and only) part of the message
-        self._last_jsbsim_msg_time = time()
+    def _FL_2_plug(self, fd, events):
+
+        msg = self._aircraft.socket_out().receive(1024)
+        self._last_jsbsim_msg = self.message2data(msg)
         self._logging(self._last_jsbsim_msg)
         self._deg_coordinates_tuple = self.deg_coordinate_tuple(self._last_jsbsim_msg)
         self._thermals_management()
@@ -325,13 +321,12 @@ class Hil(ZmqBase):
             math.cos(phi/2)*math.cos(theta/2)*math.sin(psi/2)-math.sin(phi/2)*math.sin(theta/2)*math.cos(psi/2)
                ]
 
-    def FL_2_mav_sensor(self, msg):
+    def FL_2_mav_sensor(self, data):
         """
         Translate output "data_out" to parameter for MAVLink_hil_sensor_message Pymavlink function
         :param string: ZMQ message string including  _data_out values (Human Readable)
         :return: function parameter for mavlink message "MAVLink_hil_sensor_message"
         """
-        data = self.message2data(msg)
 
         (data['velocities/phidot-rad_sec_bf'],
          data['velocities/thetadot-rad_sec_bf'],
@@ -364,13 +359,13 @@ class Hil(ZmqBase):
 
         return messagedata
 
-    def FL_2_mav_gps(self, msg):
+    def FL_2_mav_gps(self, data):
         """
         Translate output "data_out" to parameter for MAVLink_hil_gps_message Pymavlink function
         :param string: ZMQ message string including  _data_out values (Human Readable)
         :return: function parameter for mavlink message "MAVLink_hil_gps_message"
         """
-        data = self.message2data(msg)
+
 
 
         #Data treatment
@@ -392,13 +387,12 @@ class Hil(ZmqBase):
 
         return messagedata
 
-    def FL_2_mav_state_quaternion(self, msg):
+    def FL_2_mav_state_quaternion(self, data):
         """
         Translate output "data_out" to parameter for MAVLink_hil_state_quaternion_message Pymavlink function
         :param string: ZMQ message string including  _data_out values (Human Readable)
         :return: function parameter for mavlink message "MAVLink_hil_state_quaternion_message"
         """
-        data = self.message2data(msg)
 
         #Attitude quaternion
         quaternion = self.attitude_quaternion(data['attitude/phi-rad'], data['attitude/theta-rad'], data['attitude/psi-rad'])
@@ -424,14 +418,12 @@ class Hil(ZmqBase):
                         ]
         return messagedata
 
-    def FL_2_mav_state(self, msg):
+    def FL_2_mav_state(self, data):
         """
         Translate output "data_out" to parameter for MAVLink_hil_state_message Pymavlink function
         :param msg: ZMQ message string including  _data_out values (Human Readable)
         :return: function parameter for mavlink message "MAVLink_hil_state_quaternion_message"
         """
-
-        data = self.message2data(msg)
 
         (data['velocities/phidot-rad_sec_bf'],
          data['velocities/thetadot-rad_sec_bf'],
@@ -476,16 +468,14 @@ class Hil(ZmqBase):
         temp = [float(i) for i in msg.split(" ")]
         return dict(zip(self._data_FL_out,temp))
 
-    def deg_coordinate_tuple(self, msg):
-        data = self.message2data(msg)
+    def deg_coordinate_tuple(self, data):
+
         return data['position/lat-gc-rad']*self._rad2deg, data['position/long-gc-rad']*self._rad2deg
 
-    def kinetic_energy(self, msg):
-        data = self.message2data(msg)
+    def kinetic_energy(self, data):
         return 0.5*math.sqrt((data['velocities/v-north-fps']*self._ft2m)**2
                       + (data['velocities/v-east-fps']*self._ft2m)**2
                       + (data['velocities/v-down-fps']*self._ft2m)**2)
 
-    def potential_energy(self,msg):
-        data = self.message2data(msg)
+    def potential_energy(self, data):
         return data['position/h-sl-ft']*self._ft2m*self._g

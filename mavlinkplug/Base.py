@@ -55,7 +55,7 @@ class ZmqBase(multiprocessing.Process):
     def setup(self):
         if(self._zmq_context == None):
             self._zmq_context = zmq.Context()
-        self._loop = ioloop.IOLoop.instance()
+        self._loop = ioloop.IOLoop.current(True)
 
     def stream(self, sock_type, addr, bind = True, callback=None, subscribe=None):
         if(subscribe == None):

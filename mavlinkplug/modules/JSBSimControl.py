@@ -19,7 +19,7 @@
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-import subprocess, os, signal, telnetlib, time
+import subprocess, os, signal, telnetlib, time, socket
 
 
 JSBSIM_EXEC_NAME = 'JSBSim.exe'
@@ -28,26 +28,37 @@ JSBSIM_DEFAULT_EXEC =  os.path.dirname(__file__) + os.sep + '..' + os.sep + 'dat
 
 
 class JSBSimControl(object):
-    input_port = 17133
-    telnet_port = 17137
-    output_port = 17139
-
-    def __init__(self):
+    def __init__(self, aircraft='EasyStar', initfile='reset', input_port=17133, telnet_port=17137, output_port=17139, address = '127.0.0.1'):
         self.jsbrootpath = JSBSIM_DEFAULT_ROOT_PATH
         self.jsbexec = JSBSIM_DEFAULT_EXEC
-        self.aircraft = 'EasyStar'
-        self.initfile = 'reset'
-        self.defaultcommand = [self.jsbexec, '--realtime', '--nice', '--suspend', '--root=' + self.jsbrootpath, '--aircraft=' + self.aircraft, '--initfile=' + self.initfile]
+        self.aircraft = aircraft
+        self.initfile = initfile
+        self.defaultcommand = [self.jsbexec,
+                               '--realtime',
+                               '--nice',
+                               '--suspend',
+                               '--root=' + self.jsbrootpath,
+                               '--aircraft=' + self.aircraft,
+                               '--initfile=' + self.initfile
+                               ]
         self.process_h = None
         self.jsb_in_tn = None
-        self.jsb_in_address_port = ('127.0.0.1',self.telnet_port)
+        self.address = address
+        self.telnet_port = telnet_port
+        self.input_port = input_port
+        self.output_port = output_port
+        # Socket initialization
+        self.socket_in = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        self.socket_in.bind((self.address, self.input_port))
+        self.socket_out = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        self.socket_out.setblocking(0)
+        self.socket_out.bind((self.address, self.output_port))
 
     def launch(self):
         self.process_h = subprocess.Popen(self.defaultcommand)
         time.sleep(2)
-        self.jsb_in_tn = telnetlib.Telnet(self.jsb_in_address_port[0],self.jsb_in_address_port[1], 10)
+        self.jsb_in_tn = telnetlib.Telnet(self.address,self.telnet_port, 10)
         self.jsb_in_tn.read_until('JSBSim>')
-        print(self.get('help'))
 
     def _send(self, data):
         self.jsb_in_tn.write(str(data) + '\n')
@@ -74,4 +85,3 @@ class JSBSimControl(object):
         self._send("quit")
         self.jsb_in_tn.close()
         os.kill(self.process_h.pid, signal.SIGTERM)
-
