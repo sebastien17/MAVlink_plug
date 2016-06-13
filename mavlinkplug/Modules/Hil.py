@@ -69,7 +69,7 @@ class Hil(ZmqBase):
     'attitude/psi-rad'              #22
     ]
 
-    def __init__(self, module_info, mavlink_connection_ident, Aircraft_Type_cls, hil_sensor=True, quaternion=True, state_freq = 30.0, sensor_freq = 20.0, gps_freq = 5.0,  name=None):
+    def __init__(self, module_info, mavlink_connection_ident, Aircraft_Type_cls, hil_sensor=True, quaternion=True, state_freq = 30.0, sensor_freq = 20.0, gps_freq = 5.0,flight_input_freq=30,  name=None):
         super(Hil, self).__init__()
         self._mavlink_connection_ident = mavlink_connection_ident
         self._addr_to_plug, self._addr_from_plug, self._ident =  module_info
@@ -89,6 +89,7 @@ class Hil(ZmqBase):
         self._state_period = 1.0/state_freq
         self._sensor_period = 1.0/sensor_freq
         self._gps_period = 1.0/gps_freq
+        self._FL_input_period = 1.0/flight_input_freq
         self._last_jsbsim_msg = None
         self._last_mav_msg4FL = None
         self._last_mav_msg4FL_time = time()
@@ -114,31 +115,29 @@ class Hil(ZmqBase):
     @gen.engine
     def _scheduler(self):
         while self._running:
-            if self._last_jsbsim_msg != None:
+            if self._last_jsbsim_msg is not None:
                 actual_time = time()
-                #State send
-                if(actual_time - self._last_state_send_time > self._state_period):
+                # State send
+                if actual_time - self._last_state_send_time > self._state_period:
                     self._last_state_send_time = actual_time
                     self._send_state_frame()
-                #Sensor send
-                if(actual_time - self._last_sensor_send_time > self._sensor_period and self._hil_sensor == True):
+                # Sensor send
+                if actual_time - self._last_sensor_send_time > self._sensor_period and self._hil_sensor:
                     self._last_sensor_send_time = actual_time
                     self._send_sensor_frame()
-                #Gps send
-                if(actual_time - self._last_gps_send_time > self._gps_period and self._hil_sensor == True):
+                # Gps send
+                if actual_time - self._last_gps_send_time > self._gps_period and self._hil_sensor:
                     self._last_gps_send_time = actual_time
                     self._send_gps_frame()
-                #Energy send
-                if(actual_time - self._last_energy_send_time > 1.0/5):
+                # Energy send
+                if actual_time - self._last_energy_send_time > 1.0/5:
                     self._last_energy_send_time = actual_time
                     self._send_energy_frame()
-                #FL send
-                if(actual_time - self._last_FL_send_time > 1.0/5):
+                # FL send
+                if actual_time - self._last_FL_send_time > 1.0/self._FL_input_period:
                     self._last_FL_send_time = actual_time
                     self._aircraft.send_prepared_msg()
-
-
-            #60 Hz Cycle
+            # 60 Hz Cycle
             yield gen.Task(self._loop.current().add_timeout, time() + 1.0/60)
 
     def _get_MAVlink_Plug_Message(self, msg):

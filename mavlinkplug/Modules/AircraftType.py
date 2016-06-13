@@ -93,7 +93,7 @@ class EasyStar(object):
     def __init__(self, io):
         super(EasyStar,self).__init__()
         # Initialize JSBSimControl
-        self._JSBC = JSBSimControl_mod.JSBSimControl()
+        self._JSBC = JSBSimControl_mod.JSBSimControl(aircraft='EasyStar', initfile='reset')
         self._JSBC.launch()
         #Flight Loop setup
         #Initial Conditions

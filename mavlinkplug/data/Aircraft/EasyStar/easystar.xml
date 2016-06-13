@@ -684,11 +684,9 @@
         <property>atmosphere/wind-down-fps</property>
         <!--<property> simulation/terminate </property>-->
     </input>
-
     <input port="17137">
     </input>
-
-     <output name="localhost" type="QTJSBSIM" port="17139" rate="60">
+    <output name="localhost" type="QTJSBSIM" port="17139" rate="60">
         <property>position/lat-gc-rad</property>
         <property>position/long-gc-rad</property>
         <property>position/h-sl-ft</property>
